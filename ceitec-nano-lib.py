@@ -2,6 +2,8 @@ import pya
 import math
 import numpy
 
+from PCell_definition.MEMS.uHotPlate import MicroHotPlateSensor
+
 # class CEITEC_Electrical(pya.Library):
 
 #   def __init__(self):
@@ -32,7 +34,7 @@ class CEITEC_MEMS(pya.Library):
     # register the PCell declarations
     # TODO: change the names
 
-    self.layout().register_pcell("MicroHotPlate", MicroHotPlate())
+    self.layout().register_pcell("MicroHotPlate", MicroHotPlateSensor())
     # TODO: register more PCell declarations
 
     # register our library with the name "PCellLib"
