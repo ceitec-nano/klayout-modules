@@ -1,7 +1,13 @@
+# $autorun
 import pya
 import math
 import numpy
 
+#Temporary
+import sys
+#print(sys.path)
+sys.path.append("/home/xcsadilekj/Developement/git-repos/klayout-modules/") 
+#END_Temporary
 from PCell_definition.MEMS.uHotPlate import MicroHotPlateSensor
 
 # class CEITEC_Electrical(pya.Library):

@@ -1,4 +1,4 @@
-#import pya
+import pya
 import math
 import numpy
 
@@ -14,11 +14,12 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
     self.param("l", self.TypeLayer, "Hotplate material representation", default = pya.LayerInfo(1, 0, "HotPlateMat"))
     self.param("la", self.TypeLayer, "Hotplate Active Area", default = pya.LayerInfo(99, 500, "HotPlateAct"))
     self.param("ool", self.TypeLayer, "Oxide openings - etch", default = pya.LayerInfo(2,0, "Oxide opening"))
-    self.param("ld", self.TypeLayer, "Describtors layer", default = pya.LayerInfo(99,250))
+    #self.param("ld", self.TypeLayer, "Describtors layer", default = pya.LayerInfo(99,250))
     self.param("heatl", self.TypeLayer, "Heater material layer", default = pya.LayerInfo(5,0, "Heater"))
     self.param("cntl", self.TypeLayer, "Interconenctions layer", default = pya.LayerInfo(6,0, "Interconnections"))
     self.param("perfl", self.TypeLayer, "Perforation Layer", default = pya.LayerInfo(7, 0, "Perforation"))
     self.param("idcl", self.TypeLayer, "Top electrodes Layer", default = pya.LayerInfo(8,0,"Top IDCs"))
+    self.param("lvia", self.TypeLayer, "Vias layer", default = pya.LayerInfo(9,0, "Vias"))
     
     
     #Geometry parameters
@@ -38,8 +39,8 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
     self.param("heatW", self.TypeDouble, "Heater wire width", default = 1.0)
     self.param("heatOrder", self.TypeInt, "Heater wire Hillbert order", default = 5)
     self.param("heatThick", self.TypeDouble, "Heater wire thickness", default = 0.050)
-    self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 10.6E-8)
-    self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 5.0)
+    #self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 10.6E-8)
+    #self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 5.0)
     self.param("roundPath", self.TypeBoolean, "Round the heater path", choices = [["No", False],["Yes", True]], default= True)
     self.param("perfAct", self.TypeBoolean, "Perforation of the membrane in Hillbert sq", choices = [["No", False],["Yes", True]], default = True)
     self.param("perfSize", self.TypeDouble, "Perforation size", default = 2.5)
@@ -238,11 +239,12 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
 
             pointS1 = pya.DPoint(-size[0]/2, size[1]/2)
             #pointS2 = pya.DPoint(activeArea[0]/2, -activeArea[1]/2)
-            print("P:{:.3f},{:.3f} ; S:{:.3f},{:.3f}".format(-pointP.x, pointP.y, pointS1.x, pointS1.y))
+            if self.debug:
+                print("P:{:.3f},{:.3f} ; S:{:.3f},{:.3f}".format(-pointP.x, pointP.y, pointS1.x, pointS1.y))
             linEqa = (pointP.y-pointS1.y)/(-pointP.x-pointS1.x)
             linEqb = pointP.y - linEqa*-pointP.x 
-
-            print("Line equation is: y={:.3f}x+{:.3f}".format(linEqa,linEqb))
+            if self.debug:
+                print("Line equation is: y={:.3f}x+{:.3f}".format(linEqa,linEqb))
 
             heatPoints.insert(0, pya.DPoint(heatPoints[0].x - 2*Hseg, heatPoints[0].y))
             heatPoints.insert(0, pya.DPoint(heatPoints[0].x, linEqa*(heatPoints[0].x+Hseg)+linEqb))
@@ -258,36 +260,36 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
             # 
 
             # center is HeatPoints[2] -Hseg/2 ?
+            if self.perfAct:
+                perfW = self.perfSize/2 / dbu
+                #perfCenter = pya.DPoint(heatPoints[2].x - Hseg, heatPoints[2].y - Hseg)
+                #perfBox = pya.DBox(perfCenter.x-perfW, perfCenter.y-perfW, perfCenter.x+perfW, perfCenter.y-perfW)
+                elCell = self.layout.create_cell("Perforator")
+                perfBox = pya.DPolygon(pya.DBox(-perfW, -perfW, perfW, perfW))
+                if self.roundPath:
+                    perfBox = perfBox.round_corners(Hseg/2, Hseg/2, 32)
+                elCell.shapes(self.perfl_layer).insert(perfBox)
 
-            perfW = self.perfSize/2 / dbu
-            #perfCenter = pya.DPoint(heatPoints[2].x - Hseg, heatPoints[2].y - Hseg)
-            #perfBox = pya.DBox(perfCenter.x-perfW, perfCenter.y-perfW, perfCenter.x+perfW, perfCenter.y-perfW)
-            elCell = self.layout.create_cell("Perforator")
-            perfBox = pya.DPolygon(pya.DBox(-perfW, -perfW, perfW, perfW))
-            if self.roundPath:
-                perfBox = perfBox.round_corners(Hseg/2, Hseg/2, 32)
-            elCell.shapes(self.perfl_layer).insert(perfBox)
+                #lets make an array of them 
+                x_vect = pya.DVector(2*Hseg, 0.0)
+                y_vect = pya.DVector(0.0, 2*Hseg)
+                t = pya.DCplxTrans(heatInitial.x, heatInitial.y+Hseg)
+                perfArr = pya.DCellInstArray(elCell.cell_index(), t, x_vect, y_vect, Hcnt-1, Hcnt-2)
 
-            #lets make an array of them 
-            x_vect = pya.DVector(2*Hseg, 0.0)
-            y_vect = pya.DVector(0.0, 2*Hseg)
-            t = pya.DCplxTrans(heatInitial.x, heatInitial.y+Hseg)
-            perfArr = pya.DCellInstArray(elCell.cell_index(), t, x_vect, y_vect, Hcnt-1, Hcnt-2)
+                self.cell.insert(perfArr)
 
-            self.cell.insert(perfArr)
-
-            #move to the right coordinates
-            pathT = pya.DCplxTrans(Hseg, 0)
-            heatPath = pya.DPath(heatPoints, self.heatW)
-            heatPathT = heatPath.transformed(pathT)
-            if self.roundPath:
-                heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
-                heatCenter = heatPathT.bbox().center()
-                print(heatCenter)
-                print("Rounded Path center: {}:{}".format(heatCenter.x, heatCenter.y))
-                pathTr = pya.DCplxTrans(-heatCenter.x, -heatCenter.y)
-                heatPathT = heatPathT.transformed(pathTr)
-            self.cell.shapes(self.heatl_layer).insert(heatPathT)        
+                #move to the right coordinates
+                pathT = pya.DCplxTrans(Hseg, 0)
+                heatPath = pya.DPath(heatPoints, self.heatW)
+                heatPathT = heatPath.transformed(pathT)
+                if self.roundPath:
+                    heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
+                    heatCenter = heatPathT.bbox().center()
+                    print(heatCenter)
+                    print("Rounded Path center: {}:{}".format(heatCenter.x, heatCenter.y))
+                    pathTr = pya.DCplxTrans(-heatCenter.x, -heatCenter.y)
+                    heatPathT = heatPathT.transformed(pathTr)
+                self.cell.shapes(self.heatl_layer).insert(heatPathT)        
         else:
             print("Wire definition has not been found!")
             #TODO ... other types of heaters
@@ -321,7 +323,7 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
         cntSp = self.cntSp / dbu
         cntB = self.cntB / dbu
         cntBunchW = 2*(cntW+cntSp)
-        cntCnt = math.floor((2*Hseg-perfW)/cntBunchW)
+        cntCnt = math.floor((2*Hseg-2*perfW)/cntBunchW)
         if self.debug:
             print("IDC W={}".format(cntBunchW))
             print("IDCs per bunch: {}".format(cntCnt))
@@ -380,16 +382,70 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
             #Top and bottom contact 
             #  by principle the bar-contact should be horizontally oriented across the active zone
             #  then they should continue to the respective P-points (upright, lowerleft)
+            
 
             #  Contact bar would be a box from the edge to the edge of active area with a width of 
             #  cntB 
 
+            # pointCNT1A = pya.DPoint(activeArea[0]/2, activeArea[1]/2)
+
+            # if self.debug:
+            #     print("P:{:.3f},{:.3f} ; CNT:{:.3f},{:.3f}".format(-pointP.x, pointP.y, pointCNT1A.x, pointCNT1A.y))
+            # linCntEqa = (pointP.y-pointCNT1A.y)/(-pointP.x-pointCNT1A.x)
+            # linCntEqb = pointP.y - linCntEqa*-pointP.x 
+
+            # if self.debug:
+            #     print("CNT line equation is: y={:.3f}x+{:.3f}".format(linEqa,linEqb))
+            
+            # pointCNT1B =
+
+
+
+
             # Contact Bars
             cntBarW = self.cntB/dbu
-            cntBarA = pya.DBox(-activeArea[0]/2, activeArea[1]/2-cntBarW,\
-                activeArea[0]/2, activeArea[1]/2)
-            cntBarB = pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
-                activeArea[0]/2, -activeArea[1]/2+cntBarW)
+            cntWoW = self.cntWO/dbu
+            shapeSetCNT = []
+            #cntBarA 
+            shapeSetCNT.append(pya.DBox(-activeArea[0]/2, activeArea[1]/2-cntBarW,\
+                activeArea[0]/2, activeArea[1]/2))
+            #cntBarB
+            shapeSetCNT.append(pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
+                activeArea[0]/2, -activeArea[1]/2+cntBarW))
+
+            pointS2 = pya.DPoint(activeArea[0]/2, activeArea[1]/2)
+            #cntWOPathA
+            shapeSetCNT.append(pya.DPath([pointS2,pointP], cntWoW, cntWoW/2, cntWoW).polygon())
+            #cntWOPathB
+            shapeSetCNT.append(pya.DPath([-pointS2,-pointP], cntWoW, cntWoW/2, cntWoW).polygon())
+
+            for shape in shapeSetCNT:
+                self.cell.shapes(self.idcl_layer).insert(shape)
+
+            #Vias 
+            #TODO: repair position of the vias
+
+            cntViaW = cntWoW * 0.9/2 # 10% smaller then the wire
+            tr = pya.DCplxTrans(1.0, 45.0, False, pya.DVector(pointP))
+            cntViaA = pya.DPolygon(pya.DBox(-cntViaW, -cntViaW,\
+                cntViaW, cntViaW)).transform(tr)
+            tr = pya.DCplxTrans(1.0, 45.0, False, pya.DVector(-pointP))
+            cntViaB = pya.DPolygon(pya.DBox(-cntViaW, -cntViaW,\
+                cntViaW, cntViaW)).transformed(tr)
+            self.cell.shapes(self.lvia_layer).insert(cntViaA)
+            self.cell.shapes(self.lvia_layer).insert(cntViaB)
+            
+            
+            
+            #tr=pya.DCplxTrans(1000.0)
+            #regionCNT = pya.Region(shapeSetCNT)
+            #regionCNT.merge()
+            #regionCNT.transform(tr)
+            # not working -- some expansion happening there. 
+            
+            
+            
+
                         
             #END
 
