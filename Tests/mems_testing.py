@@ -503,12 +503,13 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.param("heatType", self.TypeInt, "Heater type", choices = [["Hilbert", 0],["Meander", 1],["Spiral", 2]], default= 0)
     self.param("heatW", self.TypeDouble, "Heater wire width", default = 1.0)
     self.param("heatOrder", self.TypeInt, "Heater wire Hillbert order", default = 3)
+    self.param("heatSp", self.TypeDouble, "Heater wire spacing (other then Hilbert)", default = 10.0)
     #self.param("heatThick", self.TypeDouble, "Heater wire thickness", default = 0.050)
     #self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 10.6E-8)
     #self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 5.0)
     self.param("roundPath", self.TypeBoolean, "Round the heater path", choices = [["No", False],["Yes", True]], default= True)
-    #self.param("perfAct", self.TypeBoolean, "Perforation of the membrane in Hillbert sq", choices = [["No", False],["Yes", True]], default = True)
-    #self.param("perfSize", self.TypeDouble, "Perforation size", default = 2.5)
+    self.param("perfAct", self.TypeBoolean, "Perforation of the membrane in Hillbert sq", choices = [["No", False],["Yes", True]], default = True)
+    self.param("perfSize", self.TypeDouble, "Perforation size", default = 2.5)
 
     #wireouts
  
@@ -579,6 +580,8 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     activeArea = [size[0] - self.actOffset, size[1] - self.actOffset]
 
     #Active Area
+    if self.debug:
+        print("----------      Helpers section      ----------")
     actBox = pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
          activeArea[0]/2, activeArea[1]/2)
     if self.showAct:
@@ -592,10 +595,13 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
 
     if self.debug:
         print("Active Area: {:.3f}, {:.3f} um". format(activeArea[0], activeArea[1]))
+        print("Active Area: {:.3f}, {:.3f} um". format(activeArea[0], activeArea[1]))
     #woW = self.woW/dbu
     #woOP = self.woOP/dbu
 
     # Membrane Geometry:
+    if self.debug:
+        print("---------- Membrane geometry section ----------")
     memParts=[]
     #   Firstly generate the centerpart
     memCenter = pya.Polygon(pya.DPolygon(pya.DBox(-size[0]/2, -size[1]/2, size[0]/2, size[1]/2)))
@@ -650,6 +656,8 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     
         
     # Etch area - in this variant the overal size of membrane
+    if self.debug:
+        print("----------     Oxide Etch section     ----------")
     etchRegion = pya.Region(ovBox)
     etchRegion.transform(tr)
     
@@ -658,7 +666,10 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.cell.shapes(self.ool_layer).insert(etchRegion)
 
     #Heater wire
+    if self.debug:
+        print("----------       Heater section       ----------")
     if self.genHeater:
+        
         if self.heatType == 0:
             #Hilbert is defined only for square areas. We would fit whatever is smaller
             if self.debug:
@@ -795,7 +806,71 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
             if self.debug:
                 print("Heater type >> Meander")
             
-            #Idea is that 
+            #Idea is that we would reuse the wirearea 
+            wireArea = [activeArea[0]/2 + self.actOffset/2 -armWidth/2,\
+                activeArea[1]/2 + self.actOffset/2 -armWidth/2]
+            
+            #lets try to get something like spacing 
+            heatSp = self.heatSp
+
+            segCnt = (activeArea[0] - self.heatW) / heatSp
+            if self.debug:
+                print("Segment count prior to decision point: {:.3f}".format(segCnt))
+            #Hmmm and problems begins - we need strictly to be odd number of horizontal segments\
+            # which is kinda a problem to solve
+            k = round((segCnt-1)/2)
+            segCnt = k*2 + 1
+            segStp = (activeArea[0] - self.heatW) / segCnt   
+            if self.debug:
+                print("Segment count prior to decision point: {:.3f}".format(segCnt))
+
+            if self.debug:
+                print("Adjusted segment count : {}".format(segCnt))
+
+            print("###Warning###: \n Spacing has been adjusted to {:.3f} from the {:.3f} to match the structure dimensions".format(segStp, heatSp))
+
+            for step in range(0, segCnt/2-1): 
+                #stepnum
+                # calculate the y position from given step
+                # cirRad2 = x2 + y2 >>> y2 = cirRad2 - x2
+                xpos = step * segCnt
+                ypos = activeArea[1]/2 - heatW
+                if debug:
+                    print("Calculating position: {}, {}".format(xpos, ypos))
+                # so right hand rotation >>> firt poit is going up
+                if step % 2 == 0:
+                    pointA = [xpos,   ypos]
+                    pointB = [-xpos, -ypos]
+                    lastEven = True
+                else:
+                    pointA = [ xpos, -ypos]
+                    pointB = [-xpos,  ypos]
+                    lastEven = False
+
+                points.insert(0, pointB)
+                points.append(pointA)
+
+                if roundcorners:
+                    da = math.pi / pts
+                    if step % 2 == 0:
+                        for a in range(pts, 0, -1):
+                            points.append([pointA[0]+spacing/2 * math.cos(a * da)+spacing/2, pointA[1]+spacing/2 * math.sin(a * da)])
+
+                        for a in range(0, pts):
+                            points.insert(0, [pointB[0]+spacing/2 * math.cos(-a * da)-spacing/2, pointB[1]+spacing/2 * math.sin(-a * da)])
+                    else:
+                        for a in range(pts, 0, -1):
+                            points.append([pointA[0]+spacing/2 * math.cos(-a * da)+spacing/2, pointA[1]+spacing/2 * math.sin(-a * da)])
+
+                        for a in range(0, pts):
+                            points.insert(0, [pointB[0]+spacing/2 * math.cos(a * da)-spacing/2, pointB[1]+spacing/2 * math.sin(a * da)])
+
+                pointAsep = [pointA[0]+spacing, pointA[1]]
+                pointBsep = [pointB[0]-spacing, pointB[1]]
+
+
+                points.insert(0, pointBsep)
+                points.append(pointAsep)
 
         else:
             print("Wire definition has not been found!")
@@ -807,7 +882,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
 
         # it has to be realized as a set of the 4 path
         if self.debug:
-            print("Wirouts activated")
+            print("Wirouts for heater activated")
         woW = self.woW
         woParts = []
         woPath1 = pya.DPath([\
@@ -817,11 +892,11 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
         woParts.append(woPath1)
 
         
-        woPath2 = pya.DPath([\
-            pointUL,\
-            pya.DPoint(-size[0]/2-memBMS[0], size[1]/2-armWidth/2),\
-            pya.DPoint(-size[0]/2-memBMS[0], -ovSize[1]/2)], woW)
-        woParts.append(woPath2)
+        # woPath2 = pya.DPath([\
+        #     pointUL,\
+        #     pya.DPoint(-size[0]/2-memBMS[0], size[1]/2-armWidth/2),\
+        #     pya.DPoint(-size[0]/2-memBMS[0], -ovSize[1]/2)], woW)
+        # woParts.append(woPath2)
 
         
         woPath3 = pya.DPath([\
@@ -830,11 +905,11 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
             pya.DPoint(ovSize[0]/2, -size[1]/2-memBMS[1])], woW)
         woParts.append(woPath3)
         
-        woPath4 = pya.DPath([\
-            pointLR,\
-            pya.DPoint(size[0]/2+memBMS[0], -size[1]/2+armWidth/2),\
-            pya.DPoint(size[0]/2+memBMS[0], ovSize[1]/2)], woW)
-        woParts.append(woPath4) 
+        # woPath4 = pya.DPath([\
+        #     pointLR,\
+        #     pya.DPoint(size[0]/2+memBMS[0], -size[1]/2+armWidth/2),\
+        #     pya.DPoint(size[0]/2+memBMS[0], ovSize[1]/2)], woW)
+        # woParts.append(woPath4) 
 
         for member in woParts:
             self.cell.shapes(self.wol_layer).insert(member)
