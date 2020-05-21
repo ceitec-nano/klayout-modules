@@ -5,10 +5,10 @@ import numpy
 
 #Temporary
 import sys
-#print(sys.path)
-sys.path.append("/home/xcsadilekj/Developement/git-repos/klayout-modules/") 
-#END_Temporary
+print(sys.path)
+sys.path.insert(0,"/home/sadilek/.klayout/pymacros/klayout-modules")
 from PCell_definition.MEMS.uHotPlate import MicroHotPlateSensor
+from PCell_definition.MEMS.uHotPlate import MicroHotPlateSensorHK
 
 # class CEITEC_Electrical(pya.Library):
 
@@ -41,6 +41,7 @@ class CEITEC_MEMS(pya.Library):
     # TODO: change the names
 
     self.layout().register_pcell("MicroHotPlate", MicroHotPlateSensor())
+    self.layout().register_pcell("MicroHotPlateHK", MicroHotPlateSensorHK())
     # TODO: register more PCell declarations
 
     # register our library with the name "PCellLib"
