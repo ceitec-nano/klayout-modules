@@ -479,7 +479,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.param("ool", self.TypeLayer, "Oxide openings - etch", default = pya.LayerInfo(2,0, "Oxide opening"))
     #self.param("ld", self.TypeLayer, "Describtors layer", default = pya.LayerInfo(99,250))
     self.param("heatl", self.TypeLayer, "Heater material layer", default = pya.LayerInfo(5,0, "Heater wires"))
-    #self.param("cntl", self.TypeLayer, "Interconenctions layer", default = pya.LayerInfo(6,0, "Interconnections"))
+    self.param("wol", self.TypeLayer, "WireOut layer", default = pya.LayerInfo(6,0, "wireout"))
     #self.param("perfl", self.TypeLayer, "Perforation Layer", default = pya.LayerInfo(7, 0, "Perforation"))
     #self.param("idcl", self.TypeLayer, "Top electrodes Layer", default = pya.LayerInfo(8,0,"Top IDCs"))
     #self.param("lvia", self.TypeLayer, "Vias layer", default = pya.LayerInfo(9,0, "Vias"))
@@ -494,27 +494,27 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.param("armBMS", self.TypeDouble, "Beam to Side separation", default = 10.0)
     self.param("actOffset", self.TypeDouble, "Active area offset from edge", default = 5.0)
     self.param("showAct", self.TypeBoolean, "Show active area", choices = [["No", False],["Yes", True]], default= True)
-     
+    self.param("showOvA", self.TypeBoolean, "Show overal area", choices = [["No", False],["Yes", True]], default= True) 
     #Process parameters 
     self.param("etchDepth", self.TypeDouble, "Exp. etch depth", default=25.0)
     
     #Heater parameters
     self.param("genHeater", self.TypeBoolean, "Generate Heater", choices = [["No", False],["Yes", True]], default= True)
     self.param("heatType", self.TypeInt, "Heater type", choices = [["Hilbert", 0],["Meander", 1],["Spiral", 2]], default= 0)
-    #self.param("heatW", self.TypeDouble, "Heater wire width", default = 1.0)
-    #self.param("heatOrder", self.TypeInt, "Heater wire Hillbert order", default = 5)
+    self.param("heatW", self.TypeDouble, "Heater wire width", default = 1.0)
+    self.param("heatOrder", self.TypeInt, "Heater wire Hillbert order", default = 3)
     #self.param("heatThick", self.TypeDouble, "Heater wire thickness", default = 0.050)
     #self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 10.6E-8)
     #self.param("heatRho", self.TypeDouble, "Active area offset from edge", default = 5.0)
-    #self.param("roundPath", self.TypeBoolean, "Round the heater path", choices = [["No", False],["Yes", True]], default= True)
+    self.param("roundPath", self.TypeBoolean, "Round the heater path", choices = [["No", False],["Yes", True]], default= True)
     #self.param("perfAct", self.TypeBoolean, "Perforation of the membrane in Hillbert sq", choices = [["No", False],["Yes", True]], default = True)
     #self.param("perfSize", self.TypeDouble, "Perforation size", default = 2.5)
 
     #wireouts
  
-    #self.param("genWO", self.TypeBoolean, "Generate Wireouts to overal size", choices = [["No", False],["Yes", True]], default= True) 
-    #self.param("woW", self.TypeDouble, "Wireout width", default = 5.0)
-    #self.param("woOP", self.TypeDouble, "Wireout overpass", default = 0.0)
+    self.param("genWO", self.TypeBoolean, "Generate Wireouts to overal size", choices = [["No", False],["Yes", True]], default= True) 
+    self.param("woW", self.TypeDouble, "Wireout width", default = 5.0)
+    self.param("woOP", self.TypeDouble, "Wireout overpass", default = 0.0)
 
     #contacts
     #self.param("genCnt", self.TypeBoolean, "Generate top contacts to overal size", choices = [["No", False],["Yes", True]], default= True) 
@@ -577,6 +577,21 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     armWidth = self.armWidth
     armBSS = self.armBMS
     activeArea = [size[0] - self.actOffset, size[1] - self.actOffset]
+
+    #Active Area
+    actBox = pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
+         activeArea[0]/2, activeArea[1]/2)
+    if self.showAct:
+        self.cell.shapes(self.la_layer).insert(actBox)
+    
+    #Overal Area
+    ovBox = pya.DBox(-ovSize[0]/2, -ovSize[1]/2,\
+         ovSize[0]/2, ovSize[1]/2)
+    if self.showOvA:
+        self.cell.shapes(self.loa_layer).insert(ovBox)
+
+    if self.debug:
+        print("Active Area: {:.3f}, {:.3f} um". format(activeArea[0], activeArea[1]))
     #woW = self.woW/dbu
     #woOP = self.woOP/dbu
 
@@ -590,179 +605,239 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     #   Calculate the BeamArmcenter to the membrane edge, alias beam to memrane spacing
     memBMS = [(ovSize[0]-size[0])/2 -armBSS -armWidth/2,\
         (ovSize[1]-size[1])/2 -armBSS -armWidth/2]
+    if self.debug:
+        print("Spacing in between membrane and beam X:{:.3f}um, Y:{:.3f}um".format(memBMS[0], memBMS[1]))
 
+    pointUR = pya.DPoint((size[0]-armWidth)/2, size[1]/2)
     memBeam1 = pya.Polygon(pya.DPath([\
-        pya.DPoint((size[0]-armWidth)/2, size[1]/2),\
+        pointUR,\
         pya.DPoint((size[0]-armWidth)/2, size[1]/2+memBMS[1]),\
         pya.DPoint(-ovSize[0]/2, size[1]/2+memBMS[1])], armWidth).polygon())
     memParts.append(memBeam1)
 
+    pointUL = pya.DPoint(-size[0]/2, (size[1]/2)-armWidth/2)
     memBeam2 = pya.Polygon(pya.DPath([\
-        pya.DPoint(-size[0]/2, (size[1]/2)-armWidth/2),\
-        pya.DPoint(-size[0]-memBMS[0], size[1]/2-armWidth/2),\
-        pya.DPoint(-size[0]-memBMS[0], -ovSize[1]/2)], armWidth).polygon())
+        pointUL,\
+        pya.DPoint(-size[0]/2-memBMS[0], size[1]/2-armWidth/2),\
+        pya.DPoint(-size[0]/2-memBMS[0], -ovSize[1]/2)], armWidth).polygon())
     memParts.append(memBeam2)
 
+    pointLL = pya.DPoint((-size[0]+armWidth)/2, -size[1]/2)
     memBeam3 = pya.Polygon(pya.DPath([\
-        pya.DPoint((-size[0]+armWidth)/2, -size[1]/2),\
+        pointLL,\
         pya.DPoint((-size[0]+armWidth)/2, -size[1]/2-memBMS[1]),\
         pya.DPoint(ovSize[0]/2, -size[1]/2-memBMS[1])], armWidth).polygon())
     memParts.append(memBeam3)
-
+    pointLR = pya.DPoint(size[0]/2, -(size[1]-armWidth)/2)
     memBeam4 = pya.Polygon(pya.DPath([\
-        pya.DPoint(size[0]/2, -(size[1]-armWidth)/2),\
-        pya.DPoint(size[0]+memBMS[0], -size[1]/2+armWidth/2),\
-        pya.DPoint(size[0]+memBMS[0], ovSize[1]/2)], armWidth).polygon())
+        pointLR,\
+        pya.DPoint(size[0]/2+memBMS[0], -size[1]/2+armWidth/2),\
+        pya.DPoint(size[0]/2+memBMS[0], ovSize[1]/2)], armWidth).polygon())
     memParts.append(memBeam4)
 
     #here it would be probably useful to put them all into one polygon object (hopefully it\
     # would work ;))
     if self.debug:
-        print(memParts)
+        print("Members of the device layer:")
         for member in memParts:
             print(member)
-            self.cell.shapes(self.l_layer).insert(member)
+        #     self.cell.shapes(self.l_layer).insert(member)
     tr=pya.DCplxTrans(1000.0) #workaround for difference in DBU
     region = pya.Region(memParts)
     region.merge()
     region.transform(tr)   
     self.cell.shapes(self.l_layer).insert(region)
     
-    #Active Area
-    actBox = pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
-         activeArea[0]/2, activeArea[1]/2)
-    if self.showAct:
-        self.cell.shapes(self.la_layer).insert(actBox)
-    
+        
     # Etch area - in this variant the overal size of membrane
-    etchRegion = pya.Region(actBox)
+    etchRegion = pya.Region(ovBox)
     etchRegion.transform(tr)
     
     tempRegion = region ^ etchRegion
     etchRegion = tempRegion & etchRegion
     self.cell.shapes(self.ool_layer).insert(etchRegion)
 
-    # Heater wire
-    # if self.genHeater:
-    #     if self.heatType == 0:
-    #         #Hilbert is defined only for square areas. We would fit whatever is smaller
+    #Heater wire
+    if self.genHeater:
+        if self.heatType == 0:
+            #Hilbert is defined only for square areas. We would fit whatever is smaller
+            if self.debug:
+                print("Heater type >> Hilbert")
+            if activeArea[0] != activeArea[1]:
+                if (activeArea[0] > activeArea[1]):
+                    wireArea = activeArea[1]/2 + self.actOffset/2 -armWidth/2 
+                else:
+                    wireArea = activeArea[0]/2 + self.actOffset/2 -armWidth/2
+            else:
+                wireArea = activeArea[0]/2 + self.actOffset/2 -armWidth/2
             
-    #         if activeArea[0] != activeArea[1]:
-    #             if (activeArea[0] > activeArea[1]):
-    #                 wireArea = activeArea[1]/2
-    #             else:
-    #                 wireArea = activeArea[0]/2
-    #         else:
-    #             wireArea = activeArea[0]/2
+            if self.debug:
+                print("Wire Area: {}, {}um".format(wireArea, wireArea))
+            #issue num2:
+            #  the diagonal contact placemnet is required
+            #  so we have to calculate space for the return path
+            #  segment separation 1sqg => seg = wireArea / 2^n + 1
+
+            Hcnt = 2 ** self.heatOrder + 1
+            Hseg = wireArea / (Hcnt)
+            if self.debug:
+                print("Hseq: {:.3f}".format(Hseg))
+            wireAreaRed = wireArea - Hseg
+            a=wireAreaRed+wireAreaRed*1j
+            b=wireAreaRed-wireAreaRed*1j
+            z = 0
+
+            for i in range(1,self.heatOrder+1):
+                w=1j*z.conjugate()
+                z = numpy.array([w-a, z-b, z+a, b-w])/2
+            z= z.flatten()
+            X = [x.real for x in z]
+            Y = [x.imag for x in z]
+
+            heatPoints = []
+
+            for i in range (0, len(X)):
+                heatPoints.append(pya.DPoint(X[i], Y[i]))
+
+            #lets add the return path
+            #  start with calculation of intersection to the beam
+
+            #  linEqa = -1*(pointP.y / pointP.x) - valid only for Square
+            #  
+            #print("Linear equation is y = {:.3f}.x".format(linEqa))
+
+            heatInitial = heatPoints[0]
+
+            # pointS1 = pya.DPoint(-size[0]/2, size[1]/2)
+            #pointS2 = pya.DPoint(activeArea[0]/2, -activeArea[1]/2)
+            # if self.debug:
+            #     print("P:{:.3f},{:.3f} ; S:{:.3f},{:.3f}".format(-pointP.x, pointP.y, pointS1.x, pointS1.y))
+            # linEqa = (pointP.y-pointS1.y)/(-pointP.x-pointS1.x)
+            # linEqb = pointP.y - linEqa*-pointP.x 
+            # if self.debug:
+            #     print("Line equation is: y={:.3f}x+{:.3f}".format(linEqa,linEqb))
+            print(len(heatPoints))
+            #heatPoints.append(pya.DPoint(heatPoints[len(heatPoints)-1].x + 2*Hseg,\
+            #    heatPoints[len(heatPoints)-1].y))
+            # heatPoints.insert(0, pya.DPoint(heatPoints[0].x, linEqa*(heatPoints[0].x+Hseg)+linEqb))
+            # heatPoints.append(pya.DPoint(heatPoints[len(heatPoints)-1].x, \
+            #     linEqa*(heatPoints[len(heatPoints)-1].x+Hseg)-linEqb))
+
+            # heatPoints.append(pya.DPoint(pointP.x - Hseg, -pointP.y)) #arm contacts
+            # heatPoints.insert(0, pya.DPoint(-pointP.x - Hseg, pointP.y))
             
-    #         #issue num2:
-    #         #  the diagonal contact placemnet is required
-    #         #  so we have to calculate space for the return path
-    #         #  segment separation 1sqg => seg = wireArea / 2^n + 1
-
-    #         Hcnt = 2 ** self.heatOrder + 1
-    #         Hseg = wireArea / (Hcnt)
-    #         print("Hseq: {:.3f}".format(Hseg))
-    #         wireAreaRed = wireArea - Hseg
-    #         a=wireAreaRed+wireAreaRed*1j
-    #         b=wireAreaRed-wireAreaRed*1j
-    #         z = 0
-
-    #         for i in range(1,self.heatOrder+1):
-    #             w=1j*z.conjugate()
-    #             z = numpy.array([w-a, z-b, z+a, b-w])/2
-    #         z= z.flatten()
-    #         X = [x.real for x in z]
-    #         Y = [x.imag for x in z]
-
-    #         heatPoints = []
-
-    #         for i in range (0, len(X)):
-    #             heatPoints.append(pya.DPoint(X[i], Y[i]))
-
-    #         #lets add the return path
-    #         #  start with calculation of intersection to the beam
-
-    #         #  linEqa = -1*(pointP.y / pointP.x) - valid only for Square
-    #         #  
-    #         #print("Linear equation is y = {:.3f}.x".format(linEqa))
-
-    #         heatInitial = heatPoints[0]
-
-    #         pointS1 = pya.DPoint(-size[0]/2, size[1]/2)
-    #         #pointS2 = pya.DPoint(activeArea[0]/2, -activeArea[1]/2)
-    #         if self.debug:
-    #             print("P:{:.3f},{:.3f} ; S:{:.3f},{:.3f}".format(-pointP.x, pointP.y, pointS1.x, pointS1.y))
-    #         linEqa = (pointP.y-pointS1.y)/(-pointP.x-pointS1.x)
-    #         linEqb = pointP.y - linEqa*-pointP.x 
-    #         if self.debug:
-    #             print("Line equation is: y={:.3f}x+{:.3f}".format(linEqa,linEqb))
-
-    #         heatPoints.insert(0, pya.DPoint(heatPoints[0].x - 2*Hseg, heatPoints[0].y))
-    #         heatPoints.insert(0, pya.DPoint(heatPoints[0].x, linEqa*(heatPoints[0].x+Hseg)+linEqb))
-    #         heatPoints.append(pya.DPoint(heatPoints[len(heatPoints)-1].x, \
-    #             linEqa*(heatPoints[len(heatPoints)-1].x+Hseg)-linEqb))
-
-    #         heatPoints.append(pya.DPoint(pointP.x - Hseg, -pointP.y)) #arm contacts
-    #         heatPoints.insert(0, pya.DPoint(-pointP.x - Hseg, pointP.y))
+            #probably somewhere here is a good time to calculate perforations 
+            # teoretically first opening should be -Heg/2 to the left of the very first 
+            # point and should repeat in X and Y axis with interval of Hseg
+            # 
             
-    #         #probably somewhere here is a good time to calculate perforations 
-    #         # teoretically first opening should be -Heg/2 to the left of the very first 
-    #         # point and should repeat in X and Y axis with interval of Hseg
-    #         # 
+            heatPoints.insert(0, pya.DPoint(heatPoints[0].x - 2*Hseg,\
+                heatPoints[0].y))
+            
+            heatPoints.insert(0, pointLL)
+            
+            
+            heatPoints.append(pya.DPoint(heatPoints[len(heatPoints)-1].x + 2*Hseg,\
+                heatPoints[len(heatPoints)-1].y))
 
-    #         # center is HeatPoints[2] -Hseg/2 ?
-    #         if self.perfAct:
-    #             perfW = self.perfSize/2 / dbu
-    #             #perfCenter = pya.DPoint(heatPoints[2].x - Hseg, heatPoints[2].y - Hseg)
-    #             #perfBox = pya.DBox(perfCenter.x-perfW, perfCenter.y-perfW, perfCenter.x+perfW, perfCenter.y-perfW)
-    #             elCell = self.layout.create_cell("Perforator")
-    #             perfBox = pya.DPolygon(pya.DBox(-perfW, -perfW, perfW, perfW))
-    #             if self.roundPath:
-    #                 perfBox = perfBox.round_corners(Hseg/2, Hseg/2, 32)
-    #             elCell.shapes(self.perfl_layer).insert(perfBox)
+            heatPoints.append(pointUR)
 
-    #             #lets make an array of them 
-    #             x_vect = pya.DVector(2*Hseg, 0.0)
-    #             y_vect = pya.DVector(0.0, 2*Hseg)
-    #             t = pya.DCplxTrans(heatInitial.x, heatInitial.y+Hseg)
-    #             perfArr = pya.DCellInstArray(elCell.cell_index(), t, x_vect, y_vect, Hcnt-1, Hcnt-2)
+            heatPath = pya.DPath(heatPoints, self.heatW)
+            if self.roundPath:
+                heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
+                heatCenter = heatPathT.bbox().center()
+                print(heatCenter)
+                print("Rounded Path center: {}:{}".format(heatCenter.x, heatCenter.y))
+                #pathTr = pya.DCplxTrans(-2*Hseg, 0)
+                #heatPathT = heatPathT.transformed(pathTr)
+                
+            else:
+                heatCenter = heatPath.bbox().center()
+                pathTr = pya.DCplxTrans(-heatCenter.x-2*Hseg, -heatCenter.y)
+                #heatPathT = heatPath.transformed(pathTr)
+            
+            
+            
+            self.cell.shapes(self.heatl_layer).insert(heatPathT)        
+            # center is HeatPoints[2] -Hseg/2 ?
+            # if self.perfAct:
+            #     perfW = self.perfSize/2 / dbu
+            #     #perfCenter = pya.DPoint(heatPoints[2].x - Hseg, heatPoints[2].y - Hseg)
+            #     #perfBox = pya.DBox(perfCenter.x-perfW, perfCenter.y-perfW, perfCenter.x+perfW, perfCenter.y-perfW)
+            #     elCell = self.layout.create_cell("Perforator")
+            #     perfBox = pya.DPolygon(pya.DBox(-perfW, -perfW, perfW, perfW))
+            #     if self.roundPath:
+            #         perfBox = perfBox.round_corners(Hseg/2, Hseg/2, 32)
+            #     elCell.shapes(self.perfl_layer).insert(perfBox)
 
-    #             self.cell.insert(perfArr)
+            #     #lets make an array of them 
+            #     x_vect = pya.DVector(2*Hseg, 0.0)
+            #     y_vect = pya.DVector(0.0, 2*Hseg)
+            #     t = pya.DCplxTrans(heatInitial.x, heatInitial.y+Hseg)
+            #     perfArr = pya.DCellInstArray(elCell.cell_index(), t, x_vect, y_vect, Hcnt-1, Hcnt-2)
 
-    #             #move to the right coordinates
-    #             pathT = pya.DCplxTrans(Hseg, 0)
-    #             heatPath = pya.DPath(heatPoints, self.heatW)
-    #             heatPathT = heatPath.transformed(pathT)
-    #             if self.roundPath:
-    #                 heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
-    #                 heatCenter = heatPathT.bbox().center()
-    #                 print(heatCenter)
-    #                 print("Rounded Path center: {}:{}".format(heatCenter.x, heatCenter.y))
-    #                 pathTr = pya.DCplxTrans(-heatCenter.x, -heatCenter.y)
-    #                 heatPathT = heatPathT.transformed(pathTr)
-    #             self.cell.shapes(self.heatl_layer).insert(heatPathT)        
-    #     else:
-    #         print("Wire definition has not been found!")
-    #         #TODO ... other types of heaters
+            #     self.cell.insert(perfArr)
 
-    # if self.genWO:
-    #     #we would make a wire connection from the P point to the edge of the membrane 
-    #     # overpass on both sides as an option
+            #     #move to the right coordinates
+            #     pathT = pya.DCplxTrans(Hseg, 0)
+            #     heatPath = pya.DPath(heatPoints, self.heatW)
+            #     heatPathT = heatPath.transformed(pathT)
+            #     if self.roundPath:
+            #         heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
+            #         heatCenter = heatPathT.bbox().center()
+            #         print(heatCenter)
+            #         print("Rounded Path center: {}:{}".format(heatCenter.x, heatCenter.y))
+            #         pathTr = pya.DCplxTrans(-heatCenter.x, -heatCenter.y)
+            #         heatPathT = heatPathT.transformed(pathTr)
+            #     self.cell.shapes(self.heatl_layer).insert(heatPathT)        
+        if self.heatType == 1:
+            #Hilbert is defined only for square areas. We would fit whatever is smaller
+            if self.debug:
+                print("Heater type >> Meander")
+            
+            #Idea is that 
 
-    #     # it has to be realized as a set of the 4 path
-    #     print("Overal size: {}:{}".format(ovSize[0], ovSize[1]))
-    #     woPathA = pya.DPath([pointP, pya.DPoint(ovSize[0]/2, ovSize[1]/2)],woW, woOP, woOP)
-    #     woPathB = pya.DPath([pya.DPoint(-pointP.x, pointP.y), pya.DPoint(-ovSize[0]/2, ovSize[1]/2)],\
-    #         woW, woOP, woOP)
-    #     woPathC = pya.DPath([pya.DPoint(-pointP.x, -pointP.y), pya.DPoint(-ovSize[0]/2, -ovSize[1]/2)],\
-    #         woW, woOP, woOP)
-    #     woPathD = pya.DPath([pya.DPoint(pointP.x, -pointP.y), pya.DPoint(ovSize[0]/2, -ovSize[1]/2)],\
-    #         woW, woOP, woOP)
-    #     self.cell.shapes(self.cntl_layer).insert(woPathA)
-    #     self.cell.shapes(self.cntl_layer).insert(woPathB)  
-    #     self.cell.shapes(self.cntl_layer).insert(woPathC)  
-    #     self.cell.shapes(self.cntl_layer).insert(woPathD)  
+        else:
+            print("Wire definition has not been found!")
+            #TODO ... other types of heaters
+
+    if self.genWO:
+        #we would make a wire connection from the P point to the edge of the membrane 
+        # overpass on both sides as an option
+
+        # it has to be realized as a set of the 4 path
+        if self.debug:
+            print("Wirouts activated")
+        woW = self.woW
+        woParts = []
+        woPath1 = pya.DPath([\
+            pointUR,\
+            pya.DPoint((size[0]-armWidth)/2, size[1]/2+memBMS[1]),\
+            pya.DPoint(-ovSize[0]/2, size[1]/2+memBMS[1])], woW)
+        woParts.append(woPath1)
+
+        
+        woPath2 = pya.DPath([\
+            pointUL,\
+            pya.DPoint(-size[0]/2-memBMS[0], size[1]/2-armWidth/2),\
+            pya.DPoint(-size[0]/2-memBMS[0], -ovSize[1]/2)], woW)
+        woParts.append(woPath2)
+
+        
+        woPath3 = pya.DPath([\
+            pointLL,\
+            pya.DPoint((-size[0]+armWidth)/2, -size[1]/2-memBMS[1]),\
+            pya.DPoint(ovSize[0]/2, -size[1]/2-memBMS[1])], woW)
+        woParts.append(woPath3)
+        
+        woPath4 = pya.DPath([\
+            pointLR,\
+            pya.DPoint(size[0]/2+memBMS[0], -size[1]/2+armWidth/2),\
+            pya.DPoint(size[0]/2+memBMS[0], ovSize[1]/2)], woW)
+        woParts.append(woPath4) 
+
+        for member in woParts:
+            self.cell.shapes(self.wol_layer).insert(member)
     
     # if self.genCnt:
         # Ok that would be fun ... 
