@@ -754,6 +754,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
             heatPoints.append(pointUR)
 
             heatPath = pya.DPath(heatPoints, self.heatW)
+            print("overal lenght of the heater wire: {}".format(heatPath.perimeter()))
             if self.roundPath:
                 heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
                 heatCenter = heatPathT.bbox().center()
@@ -770,37 +771,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
             
             
             self.cell.shapes(self.heatl_layer).insert(heatPathT)        
-            # center is HeatPoints[2] -Hseg/2 ?
-            # if self.perfAct:
-            #     perfW = self.perfSize/2 / dbu
-            #     #perfCenter = pya.DPoint(heatPoints[2].x - Hseg, heatPoints[2].y - Hseg)
-            #     #perfBox = pya.DBox(perfCenter.x-perfW, perfCenter.y-perfW, perfCenter.x+perfW, perfCenter.y-perfW)
-            #     elCell = self.layout.create_cell("Perforator")
-            #     perfBox = pya.DPolygon(pya.DBox(-perfW, -perfW, perfW, perfW))
-            #     if self.roundPath:
-            #         perfBox = perfBox.round_corners(Hseg/2, Hseg/2, 32)
-            #     elCell.shapes(self.perfl_layer).insert(perfBox)
-
-            #     #lets make an array of them 
-            #     x_vect = pya.DVector(2*Hseg, 0.0)
-            #     y_vect = pya.DVector(0.0, 2*Hseg)
-            #     t = pya.DCplxTrans(heatInitial.x, heatInitial.y+Hseg)
-            #     perfArr = pya.DCellInstArray(elCell.cell_index(), t, x_vect, y_vect, Hcnt-1, Hcnt-2)
-
-            #     self.cell.insert(perfArr)
-
-            #     #move to the right coordinates
-            #     pathT = pya.DCplxTrans(Hseg, 0)
-            #     heatPath = pya.DPath(heatPoints, self.heatW)
-            #     heatPathT = heatPath.transformed(pathT)
-            #     if self.roundPath:
-            #         heatPathT = heatPath.round_corners(Hseg/2,32, 0.001)
-            #         heatCenter = heatPathT.bbox().center()
-            #         print(heatCenter)
-            #         print("Rounded Path center: {}:{}".format(heatCenter.x, heatCenter.y))
-            #         pathTr = pya.DCplxTrans(-heatCenter.x, -heatCenter.y)
-            #         heatPathT = heatPathT.transformed(pathTr)
-            #     self.cell.shapes(self.heatl_layer).insert(heatPathT)        
+     
         if self.heatType == 1:
             #Hilbert is defined only for square areas. We would fit whatever is smaller
             if self.debug:
@@ -808,69 +779,107 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
             
             #Idea is that we would reuse the wirearea 
             wireArea = [activeArea[0]/2 + self.actOffset/2 -armWidth/2,\
-                activeArea[1]/2 + self.actOffset/2 -armWidth/2]
+                activeArea[1]/2 ]
+            
+            wireBox = pya.DBox(-wireArea[0], -wireArea[1],\
+                wireArea[0], wireArea[1])
+            if self.showAct:
+                self.cell.shapes(self.la_layer).insert(wireBox)
+            
             
             #lets try to get something like spacing 
             heatSp = self.heatSp
 
-            segCnt = (activeArea[0] - self.heatW) / heatSp
+            segCnt = (wireArea[0]*2) / heatSp
             if self.debug:
                 print("Segment count prior to decision point: {:.3f}".format(segCnt))
             #Hmmm and problems begins - we need strictly to be odd number of horizontal segments\
-            # which is kinda a problem to solve
+            # which is kinda a problem to solve>>
             k = round((segCnt-1)/2)
+            #k = round((segCnt)/2)
             segCnt = k*2 + 1
-            segStp = (activeArea[0] - self.heatW) / segCnt   
-            if self.debug:
-                print("Segment count prior to decision point: {:.3f}".format(segCnt))
-
+            segStp = (wireArea[0]*2) / (segCnt-1)   
+            
             if self.debug:
                 print("Adjusted segment count : {}".format(segCnt))
 
             print("###Warning###: \n Spacing has been adjusted to {:.3f} from the {:.3f} to match the structure dimensions".format(segStp, heatSp))
-
-            for step in range(0, segCnt/2-1): 
-                #stepnum
-                # calculate the y position from given step
-                # cirRad2 = x2 + y2 >>> y2 = cirRad2 - x2
-                xpos = step * segCnt
-                ypos = activeArea[1]/2 - heatW
-                if debug:
-                    print("Calculating position: {}, {}".format(xpos, ypos))
+            heatPoints = []
+            for step in range(0, int((segCnt+1)/2)):
+                print("Step: {}".format(step)) 
+                
+                xpos = step * segStp
+                if step != int((segCnt+1)/2)-1:
+                    ypos = activeArea[1]/2 - self.heatW/2
+                else:
+                    ypos = size[1]/2
+                if self.debug:
+                    print("Calculating heater position: {}, {}".format(xpos, ypos))
                 # so right hand rotation >>> firt poit is going up
                 if step % 2 == 0:
-                    pointA = [xpos,   ypos]
-                    pointB = [-xpos, -ypos]
+                    if self.debug:
+                        print("Even step")
+                    pointA = pya.DPoint(xpos,   ypos)
+                    pointB = pya.DPoint(-xpos, -ypos)
                     lastEven = True
                 else:
-                    pointA = [ xpos, -ypos]
-                    pointB = [-xpos,  ypos]
+                    if self.debug:
+                        print("Odd step")
+                    pointA = pya.DPoint(xpos, -ypos)
+                    pointB = pya.DPoint(-xpos,  ypos)
                     lastEven = False
+                print("Pass points {}, {}".format(pointA, pointB))
+                heatPoints.insert(0, pointB)
+                heatPoints.append(pointA)
+                print("Pass heatpoints {}".format(heatPoints))
 
-                points.insert(0, pointB)
-                points.append(pointA)
+                # if roundcorners:
+                #     da = math.pi / pts
+                #     if step % 2 == 0:
+                #         for a in range(pts, 0, -1):
+                #             points.append([pointA[0]+spacing/2 * math.cos(a * da)+spacing/2, pointA[1]+spacing/2 * math.sin(a * da)])
 
-                if roundcorners:
-                    da = math.pi / pts
-                    if step % 2 == 0:
-                        for a in range(pts, 0, -1):
-                            points.append([pointA[0]+spacing/2 * math.cos(a * da)+spacing/2, pointA[1]+spacing/2 * math.sin(a * da)])
+                #         for a in range(0, pts):
+                #             points.insert(0, [pointB[0]+spacing/2 * math.cos(-a * da)-spacing/2, pointB[1]+spacing/2 * math.sin(-a * da)])
+                #     else:
+                #         for a in range(pts, 0, -1):
+                #             points.append([pointA[0]+spacing/2 * math.cos(-a * da)+spacing/2, pointA[1]+spacing/2 * math.sin(-a * da)])
 
-                        for a in range(0, pts):
-                            points.insert(0, [pointB[0]+spacing/2 * math.cos(-a * da)-spacing/2, pointB[1]+spacing/2 * math.sin(-a * da)])
-                    else:
-                        for a in range(pts, 0, -1):
-                            points.append([pointA[0]+spacing/2 * math.cos(-a * da)+spacing/2, pointA[1]+spacing/2 * math.sin(-a * da)])
+                #         for a in range(0, pts):
+                #             points.insert(0, [pointB[0]+spacing/2 * math.cos(a * da)-spacing/2, pointB[1]+spacing/2 * math.sin(a * da)])
 
-                        for a in range(0, pts):
-                            points.insert(0, [pointB[0]+spacing/2 * math.cos(a * da)-spacing/2, pointB[1]+spacing/2 * math.sin(a * da)])
+                if step != int((segCnt+1)/2)-1:
+                  pointAsep = pya.DPoint(pointA.x+segStp, pointA.y)
+                  pointBsep = pya.DPoint(pointB.x-segStp, pointB.y)
+                  heatPoints.insert(0, pointBsep)
+                  heatPoints.append(pointAsep)
+                else:
+                  print("Last segment")
+                  #heatPoints.insert(0, pointB)
+                  #heatPoints.append(pointA)
 
-                pointAsep = [pointA[0]+spacing, pointA[1]]
-                pointBsep = [pointB[0]-spacing, pointB[1]]
+
+                
+                
+            print(heatPoints)
+            heatPath = pya.DPath(heatPoints, self.heatW)
+            if heatPoints[0].y > 0.0:
+                if self.debug:
+                  print("Meander has to be mirrored!")
+                pathTr = pya.DCplxTrans(1, 0, True, 0.0, 0.0)
+                heatPath = heatPath.transformed(pathTr)
+            if self.roundPath:
+                heatPath = heatPath.round_corners(segStp/2,32, 0.001)
+                # TODO: rounding causes last points to be for unknown reason ommited
+                # some kind of workaround needed ... 
+            if self.debug:
+                print("overal lenght of the heater wire: {:.3f}".format(heatPath.perimeter()))
+            self.cell.shapes(self.heatl_layer).insert(heatPath)
+                # in certain cases the meander is formed in incompatible rotation
+                # it would be more then usefull to rotate it insted of complete recalculation
+                # of coordinates. 
 
 
-                points.insert(0, pointBsep)
-                points.append(pointAsep)
 
         else:
             print("Wire definition has not been found!")
