@@ -376,7 +376,7 @@ class MicroHotPlateSensor(pya.PCellDeclarationHelper):
 
             cntLoct = pya.DCplxTrans(1.0,0,False, heatInitial.x-Hseg, 0.0)
 
-            cntArrAll = pya.DCellInstArray(cntArrCell.cell_index(), cntLoct, a_vect, b_vect, Hcnt, 1)
+            cntArrAll = pya.DCellInstArray(cntArrCell.cell_index(), cntLoct, a_vect, b_vect, 10, 1)
             self.cell.insert(cntArrAll)
 
             #Top and bottom contact 
@@ -481,7 +481,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.param("heatl", self.TypeLayer, "Heater material layer", default = pya.LayerInfo(5,0, "Heater wires"))
     self.param("wol", self.TypeLayer, "WireOut layer", default = pya.LayerInfo(6,0, "wireout"))
     #self.param("perfl", self.TypeLayer, "Perforation Layer", default = pya.LayerInfo(7, 0, "Perforation"))
-    #self.param("idcl", self.TypeLayer, "Top electrodes Layer", default = pya.LayerInfo(8,0,"Top IDCs"))
+    self.param("idcl", self.TypeLayer, "Top electrodes Layer", default = pya.LayerInfo(8,0,"Top IDCs"))
     #self.param("lvia", self.TypeLayer, "Vias layer", default = pya.LayerInfo(9,0, "Vias"))
     
     
@@ -510,6 +510,8 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.param("roundPath", self.TypeBoolean, "Round the heater path", choices = [["No", False],["Yes", True]], default= True)
     self.param("perfAct", self.TypeBoolean, "Perforation of the membrane in Hillbert sq", choices = [["No", False],["Yes", True]], default = True)
     self.param("perfSize", self.TypeDouble, "Perforation size", default = 2.5)
+    self.param("perfMult", self.TypeInt, "Perforation multiplier", default = 2)
+
 
     #wireouts
  
@@ -518,11 +520,11 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     self.param("woOP", self.TypeDouble, "Wireout overpass", default = 0.0)
 
     #contacts
-    #self.param("genCnt", self.TypeBoolean, "Generate top contacts to overal size", choices = [["No", False],["Yes", True]], default= True) 
-    #self.param("cntWO", self.TypeDouble, "contact wireout width", default = 10.0)
-    #self.param("cntW", self.TypeDouble, "contact wire width", default = 1.5)
-    #self.param("cntB", self.TypeDouble, "contact Bar width", default = 10.0)
-    #self.param("cntSp", self.TypeDouble, "contact interdigital spacing", default = 1.25)
+    self.param("genCnt", self.TypeBoolean, "Generate top contacts to overal size", choices = [["No", False],["Yes", True]], default= True) 
+    self.param("cntWO", self.TypeDouble, "contact wireout width", default = 10.0)
+    self.param("cntW", self.TypeDouble, "contact wire width", default = 1.5)
+    self.param("cntB", self.TypeDouble, "contact Bar width", default = 10.0)
+    self.param("cntSp", self.TypeDouble, "contact interdigital spacing", default = 1.25)
 
     #debuging
     self.param("debug", self.TypeBoolean, "Debug output", choices = [["No", False],["Yes", True]], default= True) 
@@ -985,13 +987,13 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
         woPath2 = pya.DPath([\
             pointUL,\
             pya.DPoint(-size[0]/2-memBMS[0], size[1]/2-armWidth/2),\
-            pya.DPoint(-size[0]/2-memBMS[0], -ovSize[1]/2)], woW)
+            pya.DPoint(-size[0]/2-memBMS[0], -ovSize[1]/2)], woW).round_corners(woW, 32, 0.001)  
         woParts.append(woPath2)
     
         woPath4 = pya.DPath([\
             pointLR,\
             pya.DPoint(size[0]/2+memBMS[0], -size[1]/2+armWidth/2),\
-            pya.DPoint(size[0]/2+memBMS[0], ovSize[1]/2)], woW)
+            pya.DPoint(size[0]/2+memBMS[0], ovSize[1]/2)], woW).round_corners(woW, 32, 0.001)  
         woParts.append(woPath4) 
 
         # 1 and 3 are measuremnt paths
@@ -1008,119 +1010,115 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
         # woParts.append(woPath3)
 
         for member in woParts:
-            self.cell.shapes(self.wol_layer).insert(member)
-
-        
+            self.cell.shapes(self.wol_layer).insert(member)     
     
-    # if self.genCnt:
+    if self.genCnt:
         # Ok that would be fun ... 
         #   so at first we should be able to find how many of the IGC we would be able to fit
         #   in between of the perforations (maybe we should count also for the minimal separation)
         #   principally:
         #       single IGS pair consists of 2 wires and 2 gaps = IGSpairW?
         #       testing condition is therefore IGSCnt = floor((Hseg - perfW) / IGSpairW)
-        # cntW = self.cntW / dbu
-        # cntSp = self.cntSp / dbu
-        # cntB = self.cntB / dbu
-        # cntBunchW = 2*(cntW+cntSp)
-        # cntCnt = math.floor((2*Hseg-2*perfW)/cntBunchW)
-        # if self.debug:
-        #     print("IDC W={}".format(cntBunchW))
-        #     print("IDCs per bunch: {}".format(cntCnt))
-        # if cntCnt == 0:
-        #     print("Error: Interdigital contacts with given specs could not be realized because of geometric containts!")
-        # else:
-        #     #lets make a subcell with interdigital pair
-        #     #   so first calculate the active area - contact bars to get the lenght
-        #     #   contacts singles
-        #     cntCell = self.layout.create_cell("IDC_subcell")
-        #     cntArrCell = self.layout.create_cell("IDC_cell")
+        cntW = self.cntW
+        cntSp = self.cntSp
+        cntB = self.cntB
+        cntBunchW = 2*(cntW+cntSp)
 
-        #     #cntLenght = activeArea - 2*cntB - cntSp
+        #Hseg = heatSp
+        if self.heatType == 0:
+            cntCnt = math.floor((2*Hseg)/cntBunchW)
+        elif self.heatType == 1 or self.heatType == 2:
+            cntCnt = math.floor()
+        else:
+            cntCnt = 1
+        if self.debug:
+            print("IDC W={}".format(cntBunchW))
+            print("IDCs per bunch: {}".format(cntCnt))
+        if cntCnt == 0:
+            print("Error: Interdigital contacts with given specs could not be realized because of geometric containts!")
+        else:
+            #lets make a subcell with interdigital pair
+            #   so first calculate the active area - contact bars to get the lenght
+            #   contacts singles
+            cntCell = self.layout.create_cell("IDC_subcell")
+            cntArrCell = self.layout.create_cell("IDC_cell")
 
-        #     cntPath_p1 = pya.DPoint((cntSp+cntW)/2, activeArea[1]/2-cntB)
-        #     cntPath_p2 = pya.DPoint((cntSp+cntW)/2, -activeArea[1]/2+cntSp+cntB) #TODO tohle je asi blbe ... 
-        #     cntPath_pA =  [cntPath_p1, cntPath_p2]
-        #     cntPath_pB =  [cntPath_p1 * -1, cntPath_p2 * -1]
+            #cntLenght = activeArea - 2*cntB - cntSp
+
+            cntPath_p1 = pya.DPoint((cntSp+cntW)/2, activeArea[1]/2-cntB)
+            cntPath_p2 = pya.DPoint((cntSp+cntW)/2, -activeArea[1]/2+cntSp+cntB) #TODO tohle je asi blbe ... 
+            cntPath_pA =  [cntPath_p1, cntPath_p2]
+            cntPath_pB =  [cntPath_p1 * -1, cntPath_p2 * -1]
             
-        #     cntPath_A = pya.DPath(cntPath_pA, cntW, 0.0, 0.0)
-        #     cntPath_B = pya.DPath(cntPath_pB, cntW, 0.0, 0.0)
+            cntPath_A = pya.DPath(cntPath_pA, cntW, 0.0, 0.0)
+            cntPath_B = pya.DPath(cntPath_pB, cntW, 0.0, 0.0)
 
-        #     cntCell.shapes(self.idcl_layer).insert(cntPath_A)
-        #     cntCell.shapes(self.idcl_layer).insert(cntPath_B)
+            cntCell.shapes(self.idcl_layer).insert(cntPath_A)
+            cntCell.shapes(self.idcl_layer).insert(cntPath_B)
 
-        #     #now lets make bunches of cntCnt and center them 
-        #     # TODO: tady jsem skoncil ... potreba projit odstavec pod
-        #     #BEGIN
-        #     x_vect = pya.DVector(cntBunchW, 0.0)
-        #     y_vect = pya.DVector(0.0, 0.0)
-        #     if self.debug:
-        #         print("IDC bunch Vectors: {}, {}, {}, {}".format(\
-        #             x_vect.x, x_vect.y, y_vect.x, y_vect.y))
-        #     t = pya.DCplxTrans(0, 0)
-        #     cntArr = pya.DCellInstArray(cntCell.cell_index(), t, x_vect, y_vect, cntCnt, 1)
+            #now lets make bunches of cntCnt and center them 
+            # TODO: tady jsem skoncil ... potreba projit odstavec pod
+            #BEGIN
+            x_vect = pya.DVector(cntBunchW, 0.0)
+            y_vect = pya.DVector(0.0, 0.0)
+            if self.debug:
+                print("IDC bunch Vectors: {}, {}, {}, {}".format(\
+                    x_vect.x, x_vect.y, y_vect.x, y_vect.y))
+            t = pya.DCplxTrans(0, 0)
+            cntArr = pya.DCellInstArray(cntCell.cell_index(), t, x_vect, y_vect, cntCnt, 1)
             
-        #     #center the origins on top of each other
-        #     #   here we have a bunch of IDCs
-        #     cntArr_center = cntArr.bbox(self.layout).center()
-        #     if self.debug:
-        #         print("Bunch center: {},{}".format(cntArr_center.x, cntArr_center.y))
-        #     t=pya.DCplxTrans(1.0, 0, False, -cntArr_center.x, -cntArr_center.y)
-        #     cntArr.transform(t)
-        #     cntArrCell.insert(cntArr)
+            #center the origins on top of each other
+            #   here we have a bunch of IDCs
+            cntArr_center = cntArr.bbox(self.layout).center()
+            if self.debug:
+                print("Bunch center: {},{}".format(cntArr_center.x, cntArr_center.y))
+            t=pya.DCplxTrans(1.0, 0, False, -cntArr_center.x, -cntArr_center.y)
+            cntArr.transform(t)
+            cntArrCell.insert(cntArr)
             
-        #     #   move the array to the position of Hilb. initial and paste it into the overal array
+            #move the array to the position of Hilb. initial and paste it into the overal array
             
-        #     a_vect = pya.DVector(2*Hseg, 0.0)
-        #     b_vect = pya.DVector(0.0, 0.0)
+            a_vect = pya.DVector(2*heatSp, 0.0)
+            b_vect = pya.DVector(0.0, 0.0)
 
-        #     cntLoct = pya.DCplxTrans(1.0,0,False, heatInitial.x-Hseg, 0.0)
+            cntLoct = pya.DCplxTrans(1.0,0,False, 0.0, 0.0)
 
-        #     cntArrAll = pya.DCellInstArray(cntArrCell.cell_index(), cntLoct, a_vect, b_vect, Hcnt, 1)
-        #     self.cell.insert(cntArrAll)
+            cntArrAll = pya.DCellInstArray(cntArrCell.cell_index(), cntLoct, a_vect, b_vect, 5, 1)
+            self.cell.insert(cntArrAll)
 
         #     #Top and bottom contact 
         #     #  by principle the bar-contact should be horizontally oriented across the active zone
-        #     #  then they should continue to the respective P-points (upright, lowerleft)
+        #     
             
 
-        #     #  Contact bar would be a box from the edge to the edge of active area with a width of 
-        #     #  cntB 
+        # Contact Bars
+        cntBarW = self.cntB
+        cntWoW = self.cntWO
+        shapeSetCNT = []
+        #cntBarA 
+        shapeSetCNT.append(pya.DBox(-activeArea[0]/2, activeArea[1]/2-cntBarW,\
+            activeArea[0]/2, activeArea[1]/2))
+        #cntBarB
+        shapeSetCNT.append(pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
+            activeArea[0]/2, -activeArea[1]/2+cntBarW))
 
-        #     # pointCNT1A = pya.DPoint(activeArea[0]/2, activeArea[1]/2)
+        # 1 and 3 are measuremnt paths
+        woPath1 = pya.DPath([\
+            pya.DPoint(pointUR.x, activeArea[1]/2),\
+            pointUR,\
+            pya.DPoint((size[0]-armWidth)/2, size[1]/2+memBMS[1]),\
+            pya.DPoint(-ovSize[0]/2, size[1]/2+memBMS[1])], cntWoW).round_corners(cntWoW, 32, 0.001)    
+        shapeSetCNT.append(woPath1)
 
-        #     # if self.debug:
-        #     #     print("P:{:.3f},{:.3f} ; CNT:{:.3f},{:.3f}".format(-pointP.x, pointP.y, pointCNT1A.x, pointCNT1A.y))
-        #     # linCntEqa = (pointP.y-pointCNT1A.y)/(-pointP.x-pointCNT1A.x)
-        #     # linCntEqb = pointP.y - linCntEqa*-pointP.x 
+        woPath3 = pya.DPath([\
+            pya.DPoint(pointLL.x, -activeArea[1]/2),\
+            pointLL,\
+            pya.DPoint((-size[0]+armWidth)/2, -size[1]/2-memBMS[1]),\
+            pya.DPoint(ovSize[0]/2, -size[1]/2-memBMS[1])], cntWoW).round_corners(cntWoW, 32, 0.001)    
+        shapeSetCNT.append(woPath3)
 
-        #     # if self.debug:
-        #     #     print("CNT line equation is: y={:.3f}x+{:.3f}".format(linEqa,linEqb))
-            
-        #     # pointCNT1B =
-
-
-
-
-        #     # Contact Bars
-        #     cntBarW = self.cntB/dbu
-        #     cntWoW = self.cntWO/dbu
-        #     shapeSetCNT = []
-        #     #cntBarA 
-        #     shapeSetCNT.append(pya.DBox(-activeArea[0]/2, activeArea[1]/2-cntBarW,\
-        #         activeArea[0]/2, activeArea[1]/2))
-        #     #cntBarB
-        #     shapeSetCNT.append(pya.DBox(-activeArea[0]/2, -activeArea[1]/2,\
-        #         activeArea[0]/2, -activeArea[1]/2+cntBarW))
-
-        #     pointS2 = pya.DPoint(activeArea[0]/2, activeArea[1]/2)
-        #     #cntWOPathA
-        #     shapeSetCNT.append(pya.DPath([pointS2,pointP], cntWoW, cntWoW/2, cntWoW).polygon())
-        #     #cntWOPathB
-        #     shapeSetCNT.append(pya.DPath([-pointS2,-pointP], cntWoW, cntWoW/2, cntWoW).polygon())
-
-        #     for shape in shapeSetCNT:
-        #         self.cell.shapes(self.idcl_layer).insert(shape)
+        for shape in shapeSetCNT:
+            self.cell.shapes(self.idcl_layer).insert(shape)
 
         #     #Vias 
         #     #TODO: repair position of the vias
