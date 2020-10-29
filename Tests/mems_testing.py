@@ -601,6 +601,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     Text += "ActArea {:.3f}, {:.3f} um\n". format(activeArea[0], activeArea[1])    
     #woW = self.woW/dbu
     #woOP = self.woOP/dbu
+    Text += "Beam {:.3f} um\n". format(armWidth)
 
     # Membrane Geometry:
     if self.debug:
@@ -615,9 +616,9 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
     memBMS = [(ovSize[0]-size[0])/2 -armBSS -armWidth/2,\
         (ovSize[1]-size[1])/2 -armBSS -armWidth/2]
     if self.debug:
-        print("Spacing in between membrane and beam X:{:.3f}um, Y:{:.3f}um".format(memBMS[0], memBMS[1]))
+        print("Spacing in between membrane and beam X:{:.3f}um, Y:{:.3f}um".format(memBMS[0]-armWidth/2, memBMS[1]-armWidth/2))
 
-    Text += "memBMS: {:.3f}, {:.3f} um\n". format(memBMS[0], memBMS[1])
+    Text += "memBMS: {:.3f}, {:.3f} um\n". format(memBMS[0]-armWidth/2, memBMS[1]-armWidth/2)
 
     pointUR = pya.DPoint((size[0]-armWidth)/2, size[1]/2)
     memBeam1 = pya.Polygon(pya.DPath([\
@@ -758,6 +759,8 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
      
         if self.heatType == 1: #Meander 
             #Hilbert is defined only for square areas. We would fit whatever is smaller
+            
+
             if self.debug:
                 print("Heater type >> Meander")
             
@@ -788,6 +791,7 @@ class MicroHotPlateSensorHK(pya.PCellDeclarationHelper):
                 print("Adjusted segment count : {}".format(segCnt))
 
             print("###Warning###: \n Spacing has been adjusted to {:.3f} from the {:.3f} to match the structure dimensions".format(segStp, heatSp))
+            Text += "Type Meander: \nW {:3e}\nSP {:3e}um\n". format(self.heatW, segStp )
             heatPoints = []
             for step in range(0, int((segCnt+1)/2)):
                 print("Step: {}".format(step)) 
