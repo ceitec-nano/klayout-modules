@@ -1,10 +1,12 @@
 import pya
 import math
 import numpy
+from dataclasses import dataclass
+
 
 class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
-  def __init__(self):
+    def __init__(self):
 
     # Important: initialize the super class
     super(MA8_AutoMarkSqSq, self).__init__()
@@ -25,50 +27,51 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
     
 
+    def display_text_impl(self):
+    # Provide a descriptive text for the cell
+        return "MA8_AutoMarkSqSq_"+self.StepName
 
-    #def display_text_impl(self):
-        # Provide a descriptive text for the cell
-    #return "AMR_Disk(D={:.3f}, AsyV={}".format(self.dia, self.asy_vector)
-
-  def coerce_parameters_impl(self):
-    # TODO: use x to access parameter x and set_x to modify it's value
-    rs = None
-  def produce_impl(self):
+    def coerce_parameters_impl(self):
+        # TODO: use x to access parameter x and set_x to modify it's value
+        rs = None
+    def produce_impl(self):
     #Using Double values only - no dbu required (alternatively use scaling instead)
 
-    #Internal constants
+        @dataclass
+        class SqinSq:
+            a : float       = 100.0         #Side lenght of the center square
+            wall : float    = 10.0          #Wallthickness of the center square FM
 
-    class HolowSq(side, wall):
-        def __init__(self, side, wall):
-            self.a = side
-            self.w = wall
-        def 
+        @dataclass
+        class Vernier:
+            tLong  : float = 50.0           #Long tick lenght
+            tShort : float = 30.0           #Short tick lenght
+            tWidth : float = 5.0            #Tick wall width
+            spL : float    = 8.0            #Spacing first exposure
+            spOL : float   = 8.5            #Spacing overlay exposure
+            tCnt : int     = 12             #Number of ticks overall
+            group : int    = 4              #Number of ticks per group (resolution)
+            tsep : float   = 5.0            #Separation between tick arrays
+            tLabelInv : bool = False        #Inversion of Label signs (+++/---)
 
+        sqFM = SqinSq(200.0, 20.0)
+        sqOL = SqinSq(100.0, 20.0)
+        verniC_L = Vernier(50.0, 30.0, 5.0, 8.0, 8.5, 12)
+        verniF_R = Vernier(50.0, 30.0, 5.0, 10.0, 10.1, 10)
+        verniC_B = VerniC_L
+        verniF_T = VerniF_R
+        verniC_B.tLabelInv = True
+        verniF_T.tLabelInv = True
 
-    FMSq = {
-        "a" : 200.0,    #Side lenght of the center square FM
-        "wall": 20.0    #Wallthickness of the center square FM
-    }
-    OLSq = {
-        "a" : 100.0,    #Side lenght of the center square OL
-        "wall": 20.0    #Wallthickness of the center square OL
-    }
-    VerniC = {
-        "long" : 50.0,  #Long tick lenght
-        "short": 30.0,  #Short tick lenght
-        "wall": 5.0,    #Tick wall thickness
-        "spL" : 8.0,    #Spacing first exposure
-        "spOL" : 8.5,   #Spacing overlay exposure
-        "cnt" : 12      #Number of ticks overall
-    }
-    VerniF = {
-        "long" : 50.0,  #Long tick lenght
-        "short": 30.0,  #Short tick lenght
-        "wall": 5.0,    #Tick wall thickness
-        "spL" : 10.0,    #Spacing first exposure
-        "spOL" : 10.1,   #Spacing overlay exposure
-        "cnt" : 10      #Number of ticks overall
-    }
+        #First the squares
     
-    #First the squares
-    FMSq = pya.DBox(FMSq.a)
+
+        #Verniers
+        # it should be written in a way, that the vernier code could be reused later on somewhere else
+        # or at least esilly rewritten 
+
+        #Course vernier
+        # it would be a cell, containing the FM and OL markers as like as the numbers given by standard
+        # generator. 
+
+        def vernier_gen(param, layer)
