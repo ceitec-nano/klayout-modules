@@ -44,7 +44,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         # TODO: use x to access parameter x and set_x to modify it's value
         rs = None
     def produce_impl(self):
-    #Using Double values only - no dbu required (alternatively use scaling instead)
+        #Using Double values only - no dbu required (alternatively use scaling instead)
 
         @dataclass
         class SqinSq:
@@ -67,7 +67,8 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             markStp : int = 1               #Increment number per long tick
             markTickSep : float = 5.0       #Separation between tick and marker 
         
-
+    
+        DIST_VERNIER = 200
 
         sqFM = SqinSq(200.0, 20.0)
         sqOL = SqinSq(100.0, 20.0)
@@ -177,16 +178,24 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             
         verniers_poly = []
         #Lay step first first :TODO finish it 
+        rot_matrix = [
+                        [0,-1],
+                        [1,0],
+                        [0,1],
+                        [-1,0]
+        ]
         
-        # for i in range(0,3):
-        #     t=pya.DCplxTrans(1.0, 90*i, False, 0, -200)
-        #     verniers_poly.append(vernier_single_gen(verniC_L, t))
+        for i in range(0,3):
+            t=pya.DCplxTrans(1.0, 90*i, False, 
+                            rot_matrix[i] * DIST_VERNIER,
+                            rot_matrix[i] * DIST_VERNIER)
+            verniers_poly.append(vernier_single_gen(verniL, t))
         # t=pya.DCplxTrans(1.0, 270, False, 150, 0)
         # verniers_poly.append(vernier_single_gen(verniC_L, t))
         # #t=pya.DCplxTrans(1.0, 0, False, 150, 150)
-        # for item in verniC_L_poly:
-        #     for tick in item:
-        #         self.cell.shapes(self.l_layer).insert(tick)
+        for item in verniers_poly:
+            for tick in item:
+                self.cell.shapes(self.l_layer).insert(tick)
 
 #STANDALLONE Testing
 if TESTING:
