@@ -62,7 +62,6 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             group : int    = 4              #Number of ticks per group (resolution)
             markers : bool = False          #Allow markers above / bellow ticks 
             asc : bool = False              #ascending of Label signs (+++/---)
-            tLabelInv : bool = False        #Inversion of Label signs (+++/---)
             centered : bool = True          #True: Center tick is 0, False: counts from side
             markSize : float = 10.0         #Magnification of sign
             markStp : int = 1               #Increment number per long tick
@@ -75,7 +74,20 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
 
         #TODO: redo parameters
-        verniC_L = Vernier()
+        verniL = Vernier(
+                        tLong = 40.0,tShort = 30.0,
+                        tWidth = 5.0,sp = 13.0,
+                        tCnt = 12,group = 12
+                        )
+        VerniC_OL = Vernier(
+                        sp = 13.25, asc = False,
+                        markers = True
+                        )
+        verniF_OL = Vernier(
+                        tWidth = 5.0,sp = 15.1,
+                        tCnt = 10,group = 5
+                        )
+        
         # verniF_R = Vernier(50.0, 30.0, 5.0, 10.0, 10.1, 10)
         # verniC_B = VerniC_L
         # verniF_T = VerniF_R
@@ -95,7 +107,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
 
         #Generate vernier array into the cell (layers would be taken from original parameters)
-        def vernier_single_gen(param):
+        def vernier_single_gen(param, t = pya.DCplxTrans(0,0)):
             """
             Returns list of polygons of vernier generated. Optionally with describtors
             
@@ -147,25 +159,34 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                     tick_range = range(param.tCnt, -1, -1)
 
             for loc in tick_range:
-                t_loc = pya.DTrans(loc * param.sp, param.offset)
+                t_loc = pya.DCplxTrans(loc * param.sp, param.offset)
                 if loc % param.group == 0: 
                     #possition of long tick
-                    verni_polys.append(tick_ln.transformed(t_loc))
+                    tick_t = tick_ln.transformed(t_loc)
+                    verni_polys.append(tick_t.transformed(t))
                     #verniCell.shapes(layer).insert(tick_ln.transformed(t_loc))
                     if param.markers:
                         pass
                         #TODO: generate marker labels
                 else:
                     #position of short tick
-                    verni_polys.append(tick_sh.transformed(t_loc))
+                    tick_t = tick_ln.transformed(t_loc)
+                    verni_polys.append(tick_t.transformed(t))
 
             return verni_polys
-
+            
+        verniers_poly = []
+        #Lay step first first :TODO finish it 
         
-        VerniTest = vernier_single_gen(verniC_L)
-        t=pya.DCplxTrans(1.0, 0, False, 150, 150)
-        for tick in VerniTest:
-            self.cell.shapes(self.l_layer).insert(tick.transformed(t))
+        # for i in range(0,3):
+        #     t=pya.DCplxTrans(1.0, 90*i, False, 0, -200)
+        #     verniers_poly.append(vernier_single_gen(verniC_L, t))
+        # t=pya.DCplxTrans(1.0, 270, False, 150, 0)
+        # verniers_poly.append(vernier_single_gen(verniC_L, t))
+        # #t=pya.DCplxTrans(1.0, 0, False, 150, 150)
+        # for item in verniC_L_poly:
+        #     for tick in item:
+        #         self.cell.shapes(self.l_layer).insert(tick)
 
 #STANDALLONE Testing
 if TESTING:
