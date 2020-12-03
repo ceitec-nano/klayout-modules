@@ -172,7 +172,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         param.tShort)
 
             #verniCell = pya.Cell()
-            verni_polys = [[],[]]
+            verni_polys = []
 
             #get the generator direction 
             if param.centered:
@@ -188,12 +188,14 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
             for loc in tick_range:
                 t_loc = pya.DCplxTrans(loc * param.sp, param.offset)
+                print(loc)
                 if loc % param.group == 0: 
                     #possition of long tick
                     tick_t = tick_ln.transformed(t_loc)
                     verni_polys.append(tick_t.transformed(t))
+                    
                     if param.markers:
-                        pass
+                        print("Mark {:+.0f}".format(loc / param.group * param.markStp))
                         #gen = pya.TextGenerator.default_generator()
                         #text = gen.text("{:+.0f}".format(loc / param.group * param.markStp), 
                         #                DBU, param.markSize)
