@@ -100,6 +100,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         '''
         DIST_VERNIER = 200
         DBU = 0.001
+        OL_OVERLAP = 0
 
         sqFM = HolowSq(200.0, 20.0)
         sqOL = HolowSq(100.0, 20.0)
@@ -109,13 +110,29 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         tWidth = 5.0,sp = 13.0,
                         tCnt = 12,group = 13
                         )
-        verniC_OL = Vernier(
-                        sp = 13.25, asc = False,
-                        markers = True
+
+        verniC_OL_B = Vernier(
+                        sp = 13.25, asc = True,
+                        markers = True, offset = OL_OVERLAP
                         )
-        verniF_OL = Vernier(
+
+        verniC_OL_L = Vernier(
+                        sp = 13.25, asc = False,
+                        markers = True, offset = OL_OVERLAP
+                        )
+
+        verniF_OL_R = Vernier(
                         tWidth = 5.0,sp = 15.1,
-                        tCnt = 10,group = 5
+                        tCnt = 10,group = 10,
+                        markers = True, asc = True,
+                        offset = OL_OVERLAP
+                        )
+
+        verniF_OL_T = Vernier(
+                        tWidth = 5.0,sp = 15.1,
+                        tCnt = 10,group = 10,
+                        markers = True, asc = False,
+                        offset = OL_OVERLAP
                         )
 
 
@@ -166,17 +183,23 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
             #get the generator direction 
             if param.centered:
+                print(param.asc)
                 if param.asc:
-                    tick_range = range(-param.tCnt, param.tCnt+1, 1)
+                    tick_range = range(-param.tCnt, param.tCnt+1, +1)
+                    dire = +1
                 else:
                     tick_range = range(param.tCnt, -param.tCnt-1, -1)
+                    dire = -1
             else:
                 if param.asc:
-                    tick_range = range(-param.tCnt, 1, 1)
+                    tick_range = range(-param.tCnt, 1, +1)
+                    dire = +1
                 else:
                     tick_range = range(param.tCnt, -1, -1)
+                    dire = -1
 
             for loc in tick_range:
+                #loc = tick_range[i]
                 t_loc = pya.DCplxTrans(loc * param.sp, param.offset)
                 if loc % param.group == 0: 
                     #possition of long tick
@@ -184,8 +207,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                     verni_polys.append(tick_t.transformed(t))
                     
                     if param.markers:
-                        print("Mark {:+.0f}".format(loc / param.group * param.markStp))
-                        
+                       
                         gen = pya.TextGenerator.default_generator()
                         if (loc / param.group * param.markStp) == 0:
                             text = gen.text("0", DBU, param.markSize)
@@ -194,21 +216,22 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                                        DBU, param.markSize)
                         
                         #text is generated with origin in the LB corner -> corecting by bbox size
-                        t_loc_text = pya.ICplxTrans(((loc * param.sp)/DBU 
+                        t_loc_text = pya.ICplxTrans(((dire * loc * param.sp)/DBU 
                                                     - (text.bbox().p2.x)/2), 
                                                     -((text.bbox().p2.y)
                                                     +param.tLong/DBU
                                                     +param.markTickSep/DBU))
                         
-                        
+                        print(t_loc_text)
                         text_t = text.transformed(t_loc_text)
                         t_text = t.to_trans()
-                        print(t_text)
+                        #print(t_text)
                         t_text.disp = t_text.disp / DBU
                         t_text.angle = t_text.angle + 180.0
-                        print(t_text)
+                        #print(t_text)
                         #verni_polys.append(text_t)
                         verni_polys.append(text_t.transformed(t_text))
+                        
                         #TODO: generate marker labels
                 else:
                     #position of short tick
@@ -238,17 +261,25 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                             rot_matrix[i][1] * DIST_VERNIER)
             verniers_poly[0].append(vernier_single_gen(verniL, t))
 
-        for i in [0,3]:
-            t=pya.DCplxTrans(1.0, 180+90*i, False, 
-                            rot_matrix[i][0] * DIST_VERNIER,
-                            rot_matrix[i][1] * DIST_VERNIER)
-            verniers_poly[1].append(vernier_single_gen(verniC_OL, t))
 
-        for i in [1,2]:
-            t=pya.DCplxTrans(1.0, 180+90*i, False, 
-                            rot_matrix[i][0] * DIST_VERNIER,
-                            rot_matrix[i][1] * DIST_VERNIER)
-            verniers_poly[1].append(vernier_single_gen(verniF_OL, t))
+        t=pya.DCplxTrans(1.0, 180+90*0, False, 
+                        rot_matrix[0][0] * DIST_VERNIER,
+                        rot_matrix[0][1] * DIST_VERNIER)
+        verniers_poly[1].append(vernier_single_gen(verniC_OL_B, t))
+
+        t=pya.DCplxTrans(1.0, 180+90*3, False, 
+                        rot_matrix[3][0] * DIST_VERNIER,
+                        rot_matrix[3][1] * DIST_VERNIER)
+        verniers_poly[1].append(vernier_single_gen(verniC_OL_L, t))
+
+        t=pya.DCplxTrans(1.0, 180+90*1, False, 
+                        rot_matrix[1][0] * DIST_VERNIER,
+                        rot_matrix[1][1] * DIST_VERNIER)
+        verniers_poly[1].append(vernier_single_gen(verniF_OL_R, t))
+        t=pya.DCplxTrans(1.0, 180+90*2, False, 
+                        rot_matrix[2][0] * DIST_VERNIER,
+                        rot_matrix[2][1] * DIST_VERNIER)
+        verniers_poly[1].append(vernier_single_gen(verniF_OL_T, t))
 
 
         for item in verniers_poly[0]:
