@@ -202,11 +202,13 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         
                         
                         text_t = text.transformed(t_loc_text)
-                        t_text = t.disp / DBU
+                        t_text = t.to_trans()
                         print(t_text)
-                        t_text = pya.ICplxTrans(pya.Vector(t.disp/DBU))
+                        t_text.disp = t_text.disp / DBU
+                        t_text.angle = t_text.angle + 180.0
+                        print(t_text)
+                        #verni_polys.append(text_t)
                         verni_polys.append(text_t.transformed(t_text))
-                        
                         #TODO: generate marker labels
                 else:
                     #position of short tick
