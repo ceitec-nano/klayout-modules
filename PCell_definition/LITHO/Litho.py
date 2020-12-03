@@ -45,6 +45,8 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         rs = None
     def produce_impl(self):
         #Using Double values only - no dbu required (alternatively use scaling instead)
+        #dbu definition is only for backwards compatibility with not "D" functions
+
 
         @dataclass
         class SqinSq:
@@ -63,24 +65,54 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             markers : bool = False          #Allow markers above / bellow ticks 
             asc : bool = False              #ascending of Label signs (+++/---)
             centered : bool = True          #True: Center tick is 0, False: counts from side
-            markSize : float = 10.0         #Magnification of sign
+            markSize : float = 50.0         #Magnification of sign
             markStp : int = 1               #Increment number per long tick
             markTickSep : float = 5.0       #Separation between tick and marker 
+
         
-    
+        class HolowSq(pya.DPolygon):
+            """
+            A class is child of pya -> DPolygon
+            Builds a hollow square from 2 parameters
+            ...
+
+            Attributes
+            ----------
+            side : float
+                first name of the person
+            wall : float
+                family name of the person
+
+            Methods
+            -------
+            N/A
+            """
+            def __init__(self, side, wall):
+
+                self.a = side/2.0
+                self.h = side/2.0-wall
+
+                self.assign(pya.DPolygon(pya.DBox(-self.a, -self.a,self.a,self.a)))
+                self.insert_hole(pya.DBox(-self.h, -self.h,self.h,self.h))
+
+        '''
+        Constants and variables:
+            DIST_VERNIER : float  - distance of vernier structures center from center of square
+            DBU : float - database unit for backwards compatibility
+
+        '''
         DIST_VERNIER = 200
+        DBU = 0.001
 
-        sqFM = SqinSq(200.0, 20.0)
-        sqOL = SqinSq(100.0, 20.0)
+        sqFM = HolowSq(200.0, 20.0)
+        sqOL = HolowSq(100.0, 20.0)
 
-
-        #TODO: redo parameters
         verniL = Vernier(
                         tLong = 40.0,tShort = 30.0,
                         tWidth = 5.0,sp = 13.0,
-                        tCnt = 12,group = 12
+                        tCnt = 12,group = 13
                         )
-        VerniC_OL = Vernier(
+        verniC_OL = Vernier(
                         sp = 13.25, asc = False,
                         markers = True
                         )
@@ -88,12 +120,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         tWidth = 5.0,sp = 15.1,
                         tCnt = 10,group = 5
                         )
-        
-        # verniF_R = Vernier(50.0, 30.0, 5.0, 10.0, 10.1, 10)
-        # verniC_B = VerniC_L
-        # verniF_T = VerniF_R
-        # verniC_B.tLabelInv = True
-        # verniF_T.tLabelInv = True
+
 
         #First the squares
     
@@ -145,7 +172,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         param.tShort)
 
             #verniCell = pya.Cell()
-            verni_polys = []
+            verni_polys = [[],[]]
 
             #get the generator direction 
             if param.centered:
@@ -165,19 +192,30 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                     #possition of long tick
                     tick_t = tick_ln.transformed(t_loc)
                     verni_polys.append(tick_t.transformed(t))
-                    #verniCell.shapes(layer).insert(tick_ln.transformed(t_loc))
                     if param.markers:
                         pass
+                        #gen = pya.TextGenerator.default_generator()
+                        #text = gen.text("{:+.0f}".format(loc / param.group * param.markStp), 
+                        #                DBU, param.markSize)
+                        #text_t = text.transformed(t_loc)
+                        #verni_polys.append(text_t.transformed(t))
+                        
                         #TODO: generate marker labels
                 else:
                     #position of short tick
-                    tick_t = tick_ln.transformed(t_loc)
+                    tick_t = tick_sh.transformed(t_loc)
                     verni_polys.append(tick_t.transformed(t))
 
             return verni_polys
             
-        verniers_poly = []
-        #Lay step first first :TODO finish it 
+
+        #Square in square structure
+        self.cell.shapes(self.l_layer).insert(sqFM)
+        self.cell.shapes(self.lo_layer).insert(sqOL)
+
+        verniers_poly = [[],[]]
+
+        #Lay step first first:
         rot_matrix = [
                         [0,-1],
                         [1,0],
@@ -185,17 +223,32 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         [-1,0]
         ]
         
-        for i in range(0,3):
+        for i in range(0,4):
             t=pya.DCplxTrans(1.0, 90*i, False, 
-                            rot_matrix[i] * DIST_VERNIER,
-                            rot_matrix[i] * DIST_VERNIER)
-            verniers_poly.append(vernier_single_gen(verniL, t))
-        # t=pya.DCplxTrans(1.0, 270, False, 150, 0)
-        # verniers_poly.append(vernier_single_gen(verniC_L, t))
-        # #t=pya.DCplxTrans(1.0, 0, False, 150, 150)
-        for item in verniers_poly:
+                            rot_matrix[i][0] * DIST_VERNIER,
+                            rot_matrix[i][1] * DIST_VERNIER)
+            verniers_poly[0].append(vernier_single_gen(verniL, t))
+
+        for i in [0,3]:
+            t=pya.DCplxTrans(1.0, 180+90*i, False, 
+                            rot_matrix[i][0] * DIST_VERNIER,
+                            rot_matrix[i][1] * DIST_VERNIER)
+            verniers_poly[1].append(vernier_single_gen(verniC_OL, t))
+
+        for i in [1,2]:
+            t=pya.DCplxTrans(1.0, 180+90*i, False, 
+                            rot_matrix[i][0] * DIST_VERNIER,
+                            rot_matrix[i][1] * DIST_VERNIER)
+            verniers_poly[1].append(vernier_single_gen(verniF_OL, t))
+
+
+        for item in verniers_poly[0]:
             for tick in item:
                 self.cell.shapes(self.l_layer).insert(tick)
+
+        for item in verniers_poly[1]:
+            for tick in item:
+                self.cell.shapes(self.lo_layer).insert(tick)
 
 #STANDALLONE Testing
 if TESTING:
