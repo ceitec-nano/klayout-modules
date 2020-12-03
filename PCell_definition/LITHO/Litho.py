@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 TESTING = True
 
-
 class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
     def __init__(self):
@@ -32,10 +31,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         #debuging
         self.param("debug", self.TypeBoolean, "Debug output", 
                     choices = [["No", False],["Yes", True]], default= True) 
-    
-
-    
-
+  
     def display_text_impl(self):
     # Provide a descriptive text for the cell
         return "MA8_AutoMarkSqSq_"+self.StepName
@@ -43,6 +39,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
     def coerce_parameters_impl(self):
         # TODO: use x to access parameter x and set_x to modify it's value
         rs = None
+
     def produce_impl(self):
         #Using Double values only - no dbu required (alternatively use scaling instead)
         #dbu definition is only for backwards compatibility with not "D" functions
@@ -65,7 +62,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             markers : bool = False          #Allow markers above / bellow ticks 
             asc : bool = False              #ascending of Label signs (+++/---)
             centered : bool = True          #True: Center tick is 0, False: counts from side
-            markSize : float = 50.0         #Magnification of sign
+            markSize : float = 40.0         #Magnification of sign
             markStp : int = 1               #Increment number per long tick
             markTickSep : float = 5.0       #Separation between tick and marker 
 
@@ -125,13 +122,6 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         #First the squares
     
 
-        #Verniers
-        # it should be written in a way, that the vernier code could be reused later on somewhere else
-        # or at least esilly rewritten 
-
-        #Course vernier
-        # it would be a cell, containing the FM and OL markers as like as the numbers given by standard
-        # generator. 
 
 
         #Generate vernier array into the cell (layers would be taken from original parameters)
@@ -188,7 +178,6 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
             for loc in tick_range:
                 t_loc = pya.DCplxTrans(loc * param.sp, param.offset)
-                print(loc)
                 if loc % param.group == 0: 
                     #possition of long tick
                     tick_t = tick_ln.transformed(t_loc)
@@ -196,11 +185,27 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                     
                     if param.markers:
                         print("Mark {:+.0f}".format(loc / param.group * param.markStp))
-                        #gen = pya.TextGenerator.default_generator()
-                        #text = gen.text("{:+.0f}".format(loc / param.group * param.markStp), 
-                        #                DBU, param.markSize)
-                        #text_t = text.transformed(t_loc)
-                        #verni_polys.append(text_t.transformed(t))
+                        
+                        gen = pya.TextGenerator.default_generator()
+                        if (loc / param.group * param.markStp) == 0:
+                            text = gen.text("0", DBU, param.markSize)
+                        else:
+                            text = gen.text("{:+.0f}".format(loc / param.group * param.markStp), 
+                                       DBU, param.markSize)
+                        
+                        #text is generated with origin in the LB corner -> corecting by bbox size
+                        t_loc_text = pya.ICplxTrans(((loc * param.sp)/DBU 
+                                                    - (text.bbox().p2.x)/2), 
+                                                    -((text.bbox().p2.y)
+                                                    +param.tLong/DBU
+                                                    +param.markTickSep/DBU))
+                        
+                        
+                        text_t = text.transformed(t_loc_text)
+                        t_text = t.disp / DBU
+                        print(t_text)
+                        t_text = pya.ICplxTrans(pya.Vector(t.disp/DBU))
+                        verni_polys.append(text_t.transformed(t_text))
                         
                         #TODO: generate marker labels
                 else:
