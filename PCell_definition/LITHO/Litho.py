@@ -23,11 +23,15 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
         self.param("lo", self.TypeLayer, "Overlay Marker layer", 
                     default = pya.LayerInfo(2, 0, "MarkerOL"))
-        self.param("OLTone", self.TypeBoolean, "Overlay Marker Tone", 
+        self.param("ol_tone", self.TypeBoolean, "Overlay Marker Tone", 
                     choices = [["Possitive", False],["Negative", True]], default= True)
 
-        self.param("StepName", self.TypeString, "Name of Step (e.g. 2A)", default = "2A") 
+        self.param("step_name_L", self.TypeString, "Name of aligned step (e.g. 1A)", default = "1A")
+        self.param("step_name_OL", self.TypeString, "Name of overlay step (e.g. 3A)", default = "2A") 
         
+        self.param("align_type", self.TypeInt, "Alignment type", 
+            choices = [["TSA", 0],["BSA", 1], ["Unspec", 2]], default= 0) 
+
         #debuging
         self.param("debug", self.TypeBoolean, "Debug output", 
                     choices = [["No", False],["Yes", True]], default= True) 
@@ -96,11 +100,15 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         Constants and variables:
             DIST_VERNIER : float  - distance of vernier structures center from center of square
             DBU : float - database unit for backwards compatibility
-
+            OL_OVERLAP: float - defines the FM and OL step vernier overlap (-) or gap (+)
+            MARK_NAME_LOC : List : floats - defines the location of TOP RIGHT name marker,
+                                            all the others are rotational array of those 
+                                            coordinates. [x,y]
         '''
         DIST_VERNIER = 200
         DBU = 0.001
         OL_OVERLAP = 0
+        MARK_NAME_LOC = [30,30]
 
         sqFM = HolowSq(200.0, 20.0)
         sqOL = HolowSq(100.0, 20.0)
@@ -255,13 +263,14 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         [-1,0]
         ]
         
+        #First layer vernier markers
         for i in range(0,4):
             t=pya.DCplxTrans(1.0, 90*i, False, 
                             rot_matrix[i][0] * DIST_VERNIER,
                             rot_matrix[i][1] * DIST_VERNIER)
             verniers_poly[0].append(vernier_single_gen(verniL, t))
 
-
+        #Overlay vernier markers with annotation 
         t=pya.DCplxTrans(1.0, 180+90*0, False, 
                         rot_matrix[0][0] * DIST_VERNIER,
                         rot_matrix[0][1] * DIST_VERNIER)
@@ -281,7 +290,14 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         rot_matrix[2][1] * DIST_VERNIER)
         verniers_poly[1].append(vernier_single_gen(verniF_OL_T, t))
 
+        #Generate names around the marker (e.g. 2A)
+        gen = pya.TextGenerator.default_generator()
+        textPos = gen.text()
+        
+            
 
+
+        #put items in the context of Cell
         for item in verniers_poly[0]:
             for tick in item:
                 self.cell.shapes(self.l_layer).insert(tick)
@@ -289,6 +305,8 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         for item in verniers_poly[1]:
             for tick in item:
                 self.cell.shapes(self.lo_layer).insert(tick)
+        
+
 
 #STANDALLONE Testing
 if TESTING:

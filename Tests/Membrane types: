@@ -2,7 +2,6 @@ Membrane types:
     MBS = 10, 20, 30
     Beam = 10, 15, 20
     
-
     dodrzet max 2kohm
     
    
