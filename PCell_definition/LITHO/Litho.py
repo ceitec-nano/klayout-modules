@@ -18,13 +18,14 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                     default = pya.LayerInfo(1, 0, "MarkerFM"))
 
         self.param("FMTone", self.TypeBoolean, "First Marker Tone", 
-                    choices = [["Possitive", False],["Negative", True]],
+                    choices = [["Possitive", True],["Negative", False]],
                     default= True)
 
         self.param("lo", self.TypeLayer, "Overlay Marker layer", 
                     default = pya.LayerInfo(2, 0, "MarkerOL"))
         self.param("ol_tone", self.TypeBoolean, "Overlay Marker Tone", 
-                    choices = [["Possitive", False],["Negative", True]], default= True)
+                    choices = [["Possitive", True],["Negative", False]], 
+                    default= True)
 
         self.param("step_name_L", self.TypeString, "Name of aligned step (e.g. 1A)", default = "1A")
         self.param("step_name_OL", self.TypeString, "Name of overlay step (e.g. 3A)", default = "2A") 
@@ -292,7 +293,14 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
         #Generate names around the marker (e.g. 2A)
         gen = pya.TextGenerator.default_generator()
-        textPos = gen.text()
+        stepText = gen.text("{}\\n->\\n{}".format(
+                            self.step_name_L,
+                            self.step_name_OL), 
+                            DBU, inv = False)
+        stepTextInv = gen.text("{}\\n->\\n{}".format(
+                            self.step_name_L,
+                            self.step_name_OL), 
+                            DBU, inv = True)
         
             
 
