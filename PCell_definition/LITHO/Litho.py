@@ -17,7 +17,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         self.param("l", self.TypeLayer, "First Marker layer", 
                     default = pya.LayerInfo(1, 0, "MarkerFM"))
 
-        self.param("FMTone", self.TypeBoolean, "First Marker Tone", 
+        self.param("fm_tone", self.TypeBoolean, "First Marker Tone", 
                     choices = [["Possitive", True],["Negative", False]],
                     default= True)
 
@@ -33,13 +33,20 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         self.param("step_name_OL", self.TypeString, "Name of overlay step (e.g. 3A)", default = "4A") 
         
         self.param("align_type", self.TypeInt, "Alignment type", 
-            choices = [["TSA", 0],["BSA", 1], ["Unspec", 2]], default= 0) 
+            choices = [["UNSPEC", 0],["TSA", 1], ["BSA", 2]], default= 0) 
 
         self.param("comment", self.TypeString, "(Optional) Comment (max. 26 char)", default = "")
 
+        self.param("lb_allow", self.TypeBoolean, "Display marker boundary", 
+                   choices = [["No", False],["Yes", True]], default= False)
+
+        self.param("lb", self.TypeLayer, "Boundary Marker layer")
+
+
+
         #debuging
-        self.param("debug", self.TypeBoolean, "Debug output", 
-                    choices = [["No", False],["Yes", True]], default= True) 
+        #self.param("debug", self.TypeBoolean, "Debug output", 
+        #            choices = [["No", False],["Yes", True]], default= True) 
   
     def display_text_impl(self):
     # Provide a descriptive text for the cell
@@ -106,14 +113,15 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             DIST_VERNIER : float  - distance of vernier structures center from center of square
             DBU : float - database unit for backwards compatibility
             OL_OVERLAP: float - defines the FM and OL step vernier overlap (-) or gap (+)
-            MARK_NAME_LOC : List : floats - defines the location of TOP RIGHT name marker,
-                                            all the others are rotational array of those 
-                                            coordinates. [x,y]
+            COMMENT_LOC : List : floats -  defines the location of optional comment under
+                                            the marker
         '''
         DIST_VERNIER = 200
         DBU = 0.001
         OL_OVERLAP = 0
-        MARK_NAME_LOC = [30,30]
+        COMMENT_LOC = [0,-350]
+        ALIGN_LOC = [-DIST_VERNIER,DIST_VERNIER]
+        ALIGN_TYPE = ["", "T\\nS\\nA", "B\\nS\\nA"]
         MARK_SIZE = [1000,1000]
 
         sqFM = HolowSq(200.0, 20.0)
@@ -258,10 +266,13 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         #lets store objects as regions
         obj_FM_layer = pya.Region() 
         obj_OL_layer = pya.Region()
+        obj_INV_layer= pya.Region()
+        
         #First the squares
         # Square in square structure
         obj_FM_layer.insert(sqFM)
         obj_OL_layer.insert(sqOL)
+        obj_INV_layer.insert(sqArea)
             #self.cell.shapes(self.l_layer).insert(sqFM)
             #self.cell.shapes(self.lo_layer).insert(sqOL)
 
@@ -311,28 +322,76 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             for arr in obj:
               obj_OL_layer.insert(arr)
 
-        # #Generate names around the marker (e.g. 2A->1A)
-        # gen = pya.TextGenerator.default_generator()
-        # # positive
-        # stepText = gen.text("{}\\n->\\n{}".format(
-        #                     self.step_name_L,
-        #                     self.step_name_OL), 
-        #                     DBU, 50, False,
-        #                     0, 0, -1)
-        # #   positive to UR transformation
-        # t_loc_text = pya.ICplxTrans(DIST_VERNIER/DBU + stepText.bbox().p1.x/2),
-        #                             DIST_VERNIER/DBU + stepText.bbox().p1.y/2))        
+        #Generate names around the marker (e.g. 2A->1A)
+        gen = pya.TextGenerator.default_generator()
+        # positive
+        stepText = gen.text("{}\\n->\\n{}".format(
+                            self.step_name_L,
+                            self.step_name_OL), 
+                            1, 40, False,
+                            0, 0, -1)
+        #   positive to UR transformation
+        t_stepText = pya.ICplxTrans(DIST_VERNIER - stepText.bbox().p1.x,
+                                    DIST_VERNIER - stepText.bbox().p1.y)
+        obj_FM_layer.insert(stepText.transform(t_stepText))
 
-        # stepTextInv = gen.text("{}\\n->\\n{}".format(
-        #                     self.step_name_L,
-        #                     self.step_name_OL), 
-        #                     DBU, 50, True,
-        #                     0, 0, -1) 
-        # t_loc_text = pya.ICplxTrans(DIST_VERNIER/DBU + stepTextInv.bbox().p1.x/2),
-        #                     DIST_VERNIER/DBU + stepTextInv.bbox().p1.y/2))      
+      
+        stepTextInv = gen.text("{}\\n->\\n{}".format(
+                            self.step_name_L,
+                            self.step_name_OL), 
+                            1, 40, True,
+                            0, 0, -1) 
+
+        obj_OL_layer.insert(stepTextInv.transform(t_stepText))
+
+        #put the alignment indication marker if prefered 
+        if self.align_type != 0:
+            align_text = gen.text(ALIGN_TYPE[self.align_type], 
+                            1, 40, False,
+                            0, 0, -1)
+            align_textInv = gen.text(ALIGN_TYPE[self.align_type], 
+                1, 40, True,
+                0, 0, -1)
+        #   positive to UR transformation
+            t_align_text = pya.ICplxTrans(ALIGN_LOC[0] - align_text.bbox().p2.x,
+                                        ALIGN_LOC[1] - align_text.bbox().p1.y)
+            obj_FM_layer.insert(align_text.transform(t_align_text))
+            obj_OL_layer.insert(align_textInv.transform(t_align_text))
     
-        self.cell.shapes(self.l_layer).insert(obj_FM_layer.transform(_scale))
-        self.cell.shapes(self.lo_layer).insert(obj_OL_layer.transform(_scale))
+        #comment section
+        if self.comment != "":
+            comment_text = gen.text(self.comment[:25], 
+                            1, 40, False,
+                            0, 0, -1)
+            comment_textInv = gen.text(self.comment[:25], 
+                            1, 40, True,
+                            0, 0, -1)
+        #   positive to UR transformation
+            t_com_text = pya.ICplxTrans(COMMENT_LOC[0] - comment_text.bbox().center().x,
+                                        COMMENT_LOC[1] - comment_text.bbox().center().y)
+            obj_FM_layer.insert(comment_text.transform(t_com_text))
+            obj_OL_layer.insert(comment_textInv.transform(t_com_text))
+
+        #Tone destinqution:
+        if self.fm_tone:
+            # is possitive
+            self.cell.shapes(self.l_layer).insert(obj_FM_layer.transform(_scale))
+        else:
+            print("tone FM negative")
+            obj_neg=obj_INV_layer-obj_FM_layer
+            self.cell.shapes(self.l_layer).insert(obj_neg.transform(_scale))
+
+        if self.ol_tone:
+            # is possitive
+            self.cell.shapes(self.lo_layer).insert(obj_OL_layer.transform(_scale))
+        else:
+            print("tone OL negative")
+            obj_neg=obj_INV_layer-obj_OL_layer
+            self.cell.shapes(self.lo_layer).insert(obj_neg.transform(_scale))
+
+        if self.lb_allow:
+            self.cell.shapes(self.lb_layer).insert(obj_INV_layer.transform(_scale))
+
 
 
 #STANDALLONE Testing
