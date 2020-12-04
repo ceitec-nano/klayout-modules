@@ -23,15 +23,19 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
         self.param("lo", self.TypeLayer, "Overlay Marker layer", 
                     default = pya.LayerInfo(2, 0, "MarkerOL"))
+
         self.param("ol_tone", self.TypeBoolean, "Overlay Marker Tone", 
                     choices = [["Possitive", True],["Negative", False]], 
                     default= True)
 
         self.param("step_name_L", self.TypeString, "Name of aligned step (e.g. 1A)", default = "1A")
-        self.param("step_name_OL", self.TypeString, "Name of overlay step (e.g. 3A)", default = "2A") 
+
+        self.param("step_name_OL", self.TypeString, "Name of overlay step (e.g. 3A)", default = "4A") 
         
         self.param("align_type", self.TypeInt, "Alignment type", 
             choices = [["TSA", 0],["BSA", 1], ["Unspec", 2]], default= 0) 
+
+        self.param("comment", self.TypeString, "(Optional) Comment (max. 26 char)", default = "")
 
         #debuging
         self.param("debug", self.TypeBoolean, "Debug output", 
@@ -39,7 +43,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
   
     def display_text_impl(self):
     # Provide a descriptive text for the cell
-        return "MA8_AutoMarkSqSq_"+self.StepName
+        return "MA8_AutoMarkSqSq_"+self.step_name_L+"_to_"+self.step_name_OL
 
     def coerce_parameters_impl(self):
         # TODO: use x to access parameter x and set_x to modify it's value
@@ -69,7 +73,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             centered : bool = True          #True: Center tick is 0, False: counts from side
             markSize : float = 40.0         #Magnification of sign
             markStp : int = 1               #Increment number per long tick
-            markTickSep : float = 5.0       #Separation between tick and marker 
+            markTickSep : float = 5.0       #Separation bFalsetween tick and marker 
 
         
         class HolowSq(pya.DPolygon):
@@ -110,9 +114,14 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         DBU = 0.001
         OL_OVERLAP = 0
         MARK_NAME_LOC = [30,30]
+        MARK_SIZE = [1000,1000]
 
         sqFM = HolowSq(200.0, 20.0)
         sqOL = HolowSq(100.0, 20.0)
+        sqArea = pya.DBox(-MARK_SIZE[0]/2, -MARK_SIZE[0]/2,
+                           MARK_SIZE[1]/2,  MARK_SIZE[1]/2)
+
+        _scale = pya.ICplxTrans(1/DBU)
 
         verniL = Vernier(
                         tLong = 40.0,tShort = 30.0,
@@ -145,13 +154,9 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         )
 
 
-        #First the squares
-    
-
-
 
         #Generate vernier array into the cell (layers would be taken from original parameters)
-        def vernier_single_gen(param, t = pya.DCplxTrans(0,0)):
+        def vernier_single_gen(param, t = pya.DCplxTrans(0,0), dbu = 1.0):
             """
             Returns list of polygons of vernier generated. Optionally with describtors
             
@@ -213,29 +218,29 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                 if loc % param.group == 0: 
                     #possition of long tick
                     tick_t = tick_ln.transformed(t_loc)
-                    verni_polys.append(tick_t.transformed(t))
+                    verni_polys.append(pya.DPolygon(tick_t.transformed(t)).to_itype())
                     
                     if param.markers:
-                       
+                        
                         gen = pya.TextGenerator.default_generator()
                         if (loc / param.group * param.markStp) == 0:
-                            text = gen.text("0", DBU, param.markSize)
+                            text = gen.text("0", dbu, param.markSize)
                         else:
                             text = gen.text("{:+.0f}".format(loc / param.group * param.markStp), 
-                                       DBU, param.markSize)
+                                       dbu, param.markSize)
                         
                         #text is generated with origin in the LB corner -> corecting by bbox size
-                        t_loc_text = pya.ICplxTrans(((dire * loc * param.sp)/DBU 
+                        t_loc_text = pya.ICplxTrans(((dire * loc * param.sp)/dbu 
                                                     - (text.bbox().p2.x)/2), 
                                                     -((text.bbox().p2.y)
-                                                    +param.tLong/DBU
-                                                    +param.markTickSep/DBU))
+                                                    +param.tLong/dbu
+                                                    +param.markTickSep/dbu))
                         
                         print(t_loc_text)
                         text_t = text.transformed(t_loc_text)
                         t_text = t.to_trans()
                         #print(t_text)
-                        t_text.disp = t_text.disp / DBU
+                        t_text.disp = t_text.disp / dbu
                         t_text.angle = t_text.angle + 180.0
                         #print(t_text)
                         #verni_polys.append(text_t)
@@ -245,17 +250,24 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                 else:
                     #position of short tick
                     tick_t = tick_sh.transformed(t_loc)
-                    verni_polys.append(tick_t.transformed(t))
+                    verni_polys.append(pya.DPolygon(tick_t.transformed(t)).to_itype())
 
             return verni_polys
             
 
-        #Square in square structure
-        self.cell.shapes(self.l_layer).insert(sqFM)
-        self.cell.shapes(self.lo_layer).insert(sqOL)
+        #lets store objects as regions
+        obj_FM_layer = pya.Region() 
+        obj_OL_layer = pya.Region()
+        #First the squares
+        # Square in square structure
+        obj_FM_layer.insert(sqFM)
+        obj_OL_layer.insert(sqOL)
+            #self.cell.shapes(self.l_layer).insert(sqFM)
+            #self.cell.shapes(self.lo_layer).insert(sqOL)
 
+        #depriciated
         verniers_poly = [[],[]]
-
+   
         #Lay step first first:
         rot_matrix = [
                         [0,-1],
@@ -291,29 +303,36 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         rot_matrix[2][1] * DIST_VERNIER)
         verniers_poly[1].append(vernier_single_gen(verniF_OL_T, t))
 
-        #Generate names around the marker (e.g. 2A)
-        gen = pya.TextGenerator.default_generator()
-        stepText = gen.text("{}\\n->\\n{}".format(
-                            self.step_name_L,
-                            self.step_name_OL), 
-                            DBU, inv = False)
-        stepTextInv = gen.text("{}\\n->\\n{}".format(
-                            self.step_name_L,
-                            self.step_name_OL), 
-                            DBU, inv = True)
-        
-            
+        for obj in verniers_poly[0]:
+            for arr in obj:
+              obj_FM_layer.insert(arr)
 
+        for obj in verniers_poly[1]:
+            for arr in obj:
+              obj_OL_layer.insert(arr)
 
-        #put items in the context of Cell
-        for item in verniers_poly[0]:
-            for tick in item:
-                self.cell.shapes(self.l_layer).insert(tick)
+        # #Generate names around the marker (e.g. 2A->1A)
+        # gen = pya.TextGenerator.default_generator()
+        # # positive
+        # stepText = gen.text("{}\\n->\\n{}".format(
+        #                     self.step_name_L,
+        #                     self.step_name_OL), 
+        #                     DBU, 50, False,
+        #                     0, 0, -1)
+        # #   positive to UR transformation
+        # t_loc_text = pya.ICplxTrans(DIST_VERNIER/DBU + stepText.bbox().p1.x/2),
+        #                             DIST_VERNIER/DBU + stepText.bbox().p1.y/2))        
 
-        for item in verniers_poly[1]:
-            for tick in item:
-                self.cell.shapes(self.lo_layer).insert(tick)
-        
+        # stepTextInv = gen.text("{}\\n->\\n{}".format(
+        #                     self.step_name_L,
+        #                     self.step_name_OL), 
+        #                     DBU, 50, True,
+        #                     0, 0, -1) 
+        # t_loc_text = pya.ICplxTrans(DIST_VERNIER/DBU + stepTextInv.bbox().p1.x/2),
+        #                     DIST_VERNIER/DBU + stepTextInv.bbox().p1.y/2))      
+    
+        self.cell.shapes(self.l_layer).insert(obj_FM_layer.transform(_scale))
+        self.cell.shapes(self.lo_layer).insert(obj_OL_layer.transform(_scale))
 
 
 #STANDALLONE Testing
