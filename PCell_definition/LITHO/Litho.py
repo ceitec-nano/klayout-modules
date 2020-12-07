@@ -61,10 +61,10 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         #dbu definition is only for backwards compatibility with not "D" functions
 
 
-        @dataclass
-        class SqinSq:
-            a : float       = 100.0         #Side lenght of the center square
-            wall : float    = 10.0          #Wallthickness of the center square FM
+        # @dataclass
+        # class SqinSq:
+        #     a : float       = 100.0         #Side lenght of the center square
+        #     wall : float    = 10.0          #Wallthickness of the center square FM
 
         @dataclass
         class Vernier:
@@ -83,7 +83,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             markTickSep : float = 5.0       #Separation bFalsetween tick and marker 
 
         
-        class HolowSq(pya.DPolygon):
+        class HolowSq(pya.Polygon):
             """
             A class is child of pya -> DPolygon
             Builds a hollow square from 2 parameters
@@ -100,13 +100,13 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
             -------
             N/A
             """
-            def __init__(self, side, wall):
+            def __init__(self, side, wall, dbu = 1):
 
-                self.a = side/2.0
-                self.h = side/2.0-wall
+                self.a = side/2/dbu
+                self.h = side/2/dbu-wall/dbu
 
-                self.assign(pya.DPolygon(pya.DBox(-self.a, -self.a,self.a,self.a)))
-                self.insert_hole(pya.DBox(-self.h, -self.h,self.h,self.h))
+                self.assign(pya.Polygon(pya.Box(-self.a, -self.a,self.a,self.a)))
+                self.insert_hole(pya.Box(-self.h, -self.h,self.h,self.h))
 
         '''
         Constants and variables:
@@ -124,10 +124,10 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         ALIGN_TYPE = ["", "T\\nS\\nA", "B\\nS\\nA"]
         MARK_SIZE = [1000,1000]
 
-        sqFM = HolowSq(200.0, 20.0)
-        sqOL = HolowSq(100.0, 20.0)
-        sqArea = pya.DBox(-MARK_SIZE[0]/2, -MARK_SIZE[0]/2,
-                           MARK_SIZE[1]/2,  MARK_SIZE[1]/2)
+        sqFM = HolowSq(200.0, 20.0, DBU)
+        sqOL = HolowSq(100.0, 20.0, DBU)
+        sqArea = pya.Box(-MARK_SIZE[0]/2/DBU, -MARK_SIZE[0]/2/DBU,
+                           MARK_SIZE[1]/2/DBU,  MARK_SIZE[1]/2/DBU)
 
         _scale = pya.ICplxTrans(1/DBU)
 
@@ -164,7 +164,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
 
         #Generate vernier array into the cell (layers would be taken from original parameters)
-        def vernier_single_gen(param, t = pya.DCplxTrans(0,0), dbu = 1.0):
+        def vernier_single_gen(param, t = pya.ICplxTrans(0,0), dbu = 1.0):
             """
             Returns list of polygons of vernier generated. Optionally with describtors
             
@@ -188,17 +188,17 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         markStp : int = 1               #Increment per tick
                         markTickSep : float = 5.0       #Separation between tick and marker 
             """
-            tick_ln = pya.DBox(
-                        -param.tWidth/2,
+            tick_ln = pya.Box(
+                        -param.tWidth/2/dbu,
                         0.0,
-                        param.tWidth/2,
-                        param.tLong)
+                        param.tWidth/2/dbu,
+                        param.tLong/dbu)
 
-            tick_sh = pya.DBox(
-                        -param.tWidth/2,
+            tick_sh = pya.Box(
+                        -param.tWidth/2/dbu,
                         0.0,
-                        param.tWidth/2,
-                        param.tShort)
+                        param.tWidth/2/dbu,
+                        param.tShort/dbu)
 
             #verniCell = pya.Cell()
             verni_polys = []
@@ -222,11 +222,13 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
 
             for loc in tick_range:
                 #loc = tick_range[i]
-                t_loc = pya.DCplxTrans(loc * param.sp, param.offset)
+                t_loc = pya.ICplxTrans(loc * param.sp/dbu, param.offset/dbu)
                 if loc % param.group == 0: 
                     #possition of long tick
                     tick_t = tick_ln.transformed(t_loc)
-                    verni_polys.append(pya.DPolygon(tick_t.transformed(t)).to_itype())
+                    tick_t = tick_t.transformed(t)
+                    poly = pya.Polygon(tick_t)
+                    verni_polys.append(poly)
                     
                     if param.markers:
                         
@@ -248,7 +250,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                         text_t = text.transformed(t_loc_text)
                         t_text = t.to_trans()
                         #print(t_text)
-                        t_text.disp = t_text.disp / dbu
+                        #t_text.disp = t_text.disp / dbu
                         t_text.angle = t_text.angle + 180.0
                         #print(t_text)
                         #verni_polys.append(text_t)
@@ -258,13 +260,13 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                 else:
                     #position of short tick
                     tick_t = tick_sh.transformed(t_loc)
-                    verni_polys.append(pya.DPolygon(tick_t.transformed(t)).to_itype())
+                    verni_polys.append(pya.Polygon(tick_t.transformed(t)))
 
             return verni_polys
             
 
         #lets store objects as regions
-        obj_FM_layer = pya.Region() 
+        obj_FM_layer = pya.Region()
         obj_OL_layer = pya.Region()
         obj_INV_layer= pya.Region()
         
@@ -289,30 +291,30 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         
         #First layer vernier markers
         for i in range(0,4):
-            t=pya.DCplxTrans(1.0, 90*i, False, 
-                            rot_matrix[i][0] * DIST_VERNIER,
-                            rot_matrix[i][1] * DIST_VERNIER)
-            verniers_poly[0].append(vernier_single_gen(verniL, t))
+            t=pya.ICplxTrans(1.0, 90*i, False, 
+                            rot_matrix[i][0] * DIST_VERNIER / DBU,
+                            rot_matrix[i][1] * DIST_VERNIER / DBU)
+            verniers_poly[0].append(vernier_single_gen(verniL, t, DBU))
 
         #Overlay vernier markers with annotation 
-        t=pya.DCplxTrans(1.0, 180+90*0, False, 
-                        rot_matrix[0][0] * DIST_VERNIER,
-                        rot_matrix[0][1] * DIST_VERNIER)
-        verniers_poly[1].append(vernier_single_gen(verniC_OL_B, t))
+        t=pya.ICplxTrans(1.0, 180+90*0, False, 
+                        rot_matrix[0][0] * DIST_VERNIER / DBU,
+                        rot_matrix[0][1] * DIST_VERNIER / DBU)
+        verniers_poly[1].append(vernier_single_gen(verniC_OL_B, t, DBU))
 
-        t=pya.DCplxTrans(1.0, 180+90*3, False, 
-                        rot_matrix[3][0] * DIST_VERNIER,
-                        rot_matrix[3][1] * DIST_VERNIER)
-        verniers_poly[1].append(vernier_single_gen(verniC_OL_L, t))
+        t=pya.ICplxTrans(1.0, 180+90*3, False, 
+                        rot_matrix[3][0] * DIST_VERNIER / DBU,
+                        rot_matrix[3][1] * DIST_VERNIER / DBU)
+        verniers_poly[1].append(vernier_single_gen(verniC_OL_L, t, DBU))
 
-        t=pya.DCplxTrans(1.0, 180+90*1, False, 
-                        rot_matrix[1][0] * DIST_VERNIER,
-                        rot_matrix[1][1] * DIST_VERNIER)
-        verniers_poly[1].append(vernier_single_gen(verniF_OL_R, t))
-        t=pya.DCplxTrans(1.0, 180+90*2, False, 
-                        rot_matrix[2][0] * DIST_VERNIER,
-                        rot_matrix[2][1] * DIST_VERNIER)
-        verniers_poly[1].append(vernier_single_gen(verniF_OL_T, t))
+        t=pya.ICplxTrans(1.0, 180+90*1, False, 
+                        rot_matrix[1][0] * DIST_VERNIER / DBU,
+                        rot_matrix[1][1] * DIST_VERNIER / DBU)
+        verniers_poly[1].append(vernier_single_gen(verniF_OL_R, t, DBU))
+        t=pya.ICplxTrans(1.0, 180+90*2, False, 
+                        rot_matrix[2][0] * DIST_VERNIER / DBU,
+                        rot_matrix[2][1] * DIST_VERNIER / DBU)
+        verniers_poly[1].append(vernier_single_gen(verniF_OL_T, t, DBU))
 
         for obj in verniers_poly[0]:
             for arr in obj:
@@ -328,18 +330,18 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         stepText = gen.text("{}\\n->\\n{}".format(
                             self.step_name_L,
                             self.step_name_OL), 
-                            1, 40, False,
+                            DBU, 40, False,
                             0, 0, -1)
         #   positive to UR transformation
-        t_stepText = pya.ICplxTrans(DIST_VERNIER - stepText.bbox().p1.x,
-                                    DIST_VERNIER - stepText.bbox().p1.y)
+        t_stepText = pya.ICplxTrans((DIST_VERNIER / DBU - stepText.bbox().p1.x),
+                                    (DIST_VERNIER / DBU - stepText.bbox().p1.y))
         obj_FM_layer.insert(stepText.transform(t_stepText))
 
       
         stepTextInv = gen.text("{}\\n->\\n{}".format(
                             self.step_name_L,
                             self.step_name_OL), 
-                            1, 40, True,
+                            DBU, 40, True,
                             0, 0, -1) 
 
         obj_OL_layer.insert(stepTextInv.transform(t_stepText))
@@ -347,51 +349,102 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         #put the alignment indication marker if prefered 
         if self.align_type != 0:
             align_text = gen.text(ALIGN_TYPE[self.align_type], 
-                            1, 40, False,
+                            DBU, 40, False,
                             0, 0, -1)
             align_textInv = gen.text(ALIGN_TYPE[self.align_type], 
-                1, 40, True,
+                DBU, 40, True,
                 0, 0, -1)
         #   positive to UR transformation
-            t_align_text = pya.ICplxTrans(ALIGN_LOC[0] - align_text.bbox().p2.x,
-                                        ALIGN_LOC[1] - align_text.bbox().p1.y)
+            t_align_text = pya.ICplxTrans(ALIGN_LOC[0]/DBU - align_text.bbox().p2.x,
+                                        ALIGN_LOC[1]/DBU - align_text.bbox().p1.y)
             obj_FM_layer.insert(align_text.transform(t_align_text))
             obj_OL_layer.insert(align_textInv.transform(t_align_text))
     
         #comment section
         if self.comment != "":
             comment_text = gen.text(self.comment[:25], 
-                            1, 40, False,
+                            DBU, 40, False,
                             0, 0, -1)
             comment_textInv = gen.text(self.comment[:25], 
-                            1, 40, True,
+                            DBU, 40, True,
                             0, 0, -1)
         #   positive to UR transformation
-            t_com_text = pya.ICplxTrans(COMMENT_LOC[0] - comment_text.bbox().center().x,
-                                        COMMENT_LOC[1] - comment_text.bbox().center().y)
+            t_com_text = pya.ICplxTrans((COMMENT_LOC[0]/DBU - comment_text.bbox().center().x),
+                                        (COMMENT_LOC[1]/DBU - comment_text.bbox().center().y))
             obj_FM_layer.insert(comment_text.transform(t_com_text))
             obj_OL_layer.insert(comment_textInv.transform(t_com_text))
 
         #Tone destinqution:
         if self.fm_tone:
             # is possitive
-            self.cell.shapes(self.l_layer).insert(obj_FM_layer.transform(_scale))
+            # used to be >> self.cell.shapes(self.l_layer).insert(obj_FM_layer.transform(_scale))
+            self.cell.shapes(self.l_layer).insert(obj_FM_layer)
         else:
             print("tone FM negative")
             obj_neg=obj_INV_layer-obj_FM_layer
-            self.cell.shapes(self.l_layer).insert(obj_neg.transform(_scale))
+            self.cell.shapes(self.l_layer).insert(obj_neg)
 
         if self.ol_tone:
             # is possitive
-            self.cell.shapes(self.lo_layer).insert(obj_OL_layer.transform(_scale))
+            self.cell.shapes(self.lo_layer).insert(obj_OL_layer)
         else:
             print("tone OL negative")
             obj_neg=obj_INV_layer-obj_OL_layer
-            self.cell.shapes(self.lo_layer).insert(obj_neg.transform(_scale))
+            self.cell.shapes(self.lo_layer).insert(obj_neg)
 
         if self.lb_allow:
-            self.cell.shapes(self.lb_layer).insert(obj_INV_layer.transform(_scale))
+            self.cell.shapes(self.lb_layer).insert(obj_INV_layer)
 
+class MA8_OverLayVerier(pya.PCellDeclarationHelper):
+
+    def __init__(self):
+
+        # Important: initialize the super class
+        super(MA8_OverLayVerier, self).__init__()
+
+        # declare the parameters
+        #LayerParameters
+        self.param("l", self.TypeLayer, "First Marker layer", 
+                    default = pya.LayerInfo(1, 0, "MarkerFM"))
+
+        self.param("fm_tone", self.TypeBoolean, "First Marker Tone", 
+                    choices = [["Possitive", True],["Negative", False]],
+                    default= True)
+
+        self.param("lo", self.TypeLayer, "Overlay Marker layer", 
+                    default = pya.LayerInfo(2, 0, "MarkerOL"))
+
+        self.param("ol_tone", self.TypeBoolean, "Overlay Marker Tone", 
+                    choices = [["Possitive", True],["Negative", False]], 
+                    default= True)
+
+        self.param("step_name_L", self.TypeString, "Name of aligned step (e.g. 1A)", default = "1A")
+
+        self.param("step_name_OL", self.TypeString, "Name of overlay step (e.g. 3A)", default = "4A") 
+        
+        self.param("align_type", self.TypeInt, "Alignment type", 
+            choices = [["UNSPEC", 0],["TSA", 1], ["BSA", 2]], default= 0) 
+
+        self.param("comment", self.TypeString, "(Optional) Comment (max. 26 char)", default = "")
+
+        self.param("lb_allow", self.TypeBoolean, "Display marker boundary", 
+                   choices = [["No", False],["Yes", True]], default= False)
+
+        self.param("lb", self.TypeLayer, "Boundary Marker layer")
+
+
+
+        #debuging
+        #self.param("debug", self.TypeBoolean, "Debug output", 
+        #            choices = [["No", False],["Yes", True]], default= True) 
+  
+    def display_text_impl(self):
+    # Provide a descriptive text for the cell
+        return "MA8_AutoMarkSqSq_"+self.step_name_L+"_to_"+self.step_name_OL
+
+    def coerce_parameters_impl(self):
+        # TODO: use x to access parameter x and set_x to modify it's value
+        rs = None
 
 
 #STANDALLONE Testing
