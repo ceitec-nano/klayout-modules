@@ -40,7 +40,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         self.param("lb_allow", self.TypeBoolean, "Display marker boundary", 
                    choices = [["No", False],["Yes", True]], default= False)
 
-        self.param("lb", self.TypeLayer, "Boundary Marker layer")
+
 
 
 
