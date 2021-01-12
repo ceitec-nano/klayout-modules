@@ -60,6 +60,10 @@ class Square(pya.PCellDeclarationHelper):
 
     def produce_impl(self):
 
+        point_LL = pya.DPoint(-self.side_a/2, -self.side_a/2)
+        point_TR = pya.DPoint(self.side_a/2, self.side_a/2)
+
+
 #STANDALLONE Testing
 if TESTING:
     class klTraining(pya.Library):
