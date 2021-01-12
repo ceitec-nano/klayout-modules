@@ -34,6 +34,9 @@ class Square(pya.PCellDeclarationHelper):
 
     def __init__(self):
 
+# Enter your Python code here
+
+
         # Important: initialize the super class
         super(Square, self).__init__()
 
@@ -79,4 +82,4 @@ if TESTING:
 
             self.register("klTraining")
 
-    klTraining()           
+    klTraining()    
