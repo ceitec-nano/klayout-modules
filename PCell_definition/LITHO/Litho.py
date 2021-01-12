@@ -246,7 +246,7 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
                                                     +param.tLong/dbu
                                                     +param.markTickSep/dbu))
                         
-                        print(t_loc_text)
+                        #print(t_loc_text)
                         text_t = text.transformed(t_loc_text)
                         t_text = t.to_trans()
                         #print(t_text)
@@ -395,12 +395,12 @@ class MA8_AutoMarkSqSq(pya.PCellDeclarationHelper):
         if self.lb_allow:
             self.cell.shapes(self.lb_layer).insert(obj_INV_layer)
 
-class MA8_OverLayVerier(pya.PCellDeclarationHelper):
+class MA8_OverLayVernier(pya.PCellDeclarationHelper):
 
     def __init__(self):
 
         # Important: initialize the super class
-        super(MA8_OverLayVerier, self).__init__()
+        super(MA8_OverLayVernier, self).__init__()
 
         # declare the parameters
         #LayerParameters
