@@ -63,6 +63,8 @@ class Square(pya.PCellDeclarationHelper):
         point_LL = pya.DPoint(-self.side_a/2, -self.side_a/2)
         point_TR = pya.DPoint(self.side_a/2, self.side_a/2)
 
+        ourSquare = pya.DBox(point_LL, point_TR)
+
 
 #STANDALLONE Testing
 if TESTING:
