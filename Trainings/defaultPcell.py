@@ -65,6 +65,7 @@ class Square(pya.PCellDeclarationHelper):
 
         ourSquare = pya.DBox(point_LL, point_TR)
 
+        self.cell.shapes(l_layer).insert(ourSquare)
 
 #STANDALLONE Testing
 if TESTING:
